@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ course.Course_name }} - CodeCraft</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span></div>
+            <nav>
+                <a href="/dashboard" class="active">Dashboard</a>
+                <a href="/profile">My Profile</a>
+                <a href="/login-history">Login History</a>
+                <a href="/risk-scores">Risk Score</a>
+                <a href="/security-alerts">Security Alerts</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+        <div class="main-content">
+            <h2>{{ course.Course_name }}</h2>
+            <p class="subtitle">Course content</p>
+            <div class="content-card">
+                <p>{{ course.Description }}</p>
+            </div>
+            <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+        </div>
+    </div>
+</body>
+</html>

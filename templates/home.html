@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Secure Learning</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="public-navbar">
+        <div class="brand">
+            <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="CodeCraft Logo" class="logo-img">
+            Code<span>Craft</span>
+        </div>
+        <div>
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+        </div>
+    </div>
+
+    <div class="hero">
+        <h1>Secure Learning with Intelligent Protection</h1>
+        <p>CodeCraft LMS integrates Explainable Machine Learning to detect and analyze potential credential theft risks, ensuring a safer academic environment.</p>
+        <div class="hero-buttons">
+            <a href="/login" class="btn btn-primary">Login</a>
+            <a href="/register" class="btn btn-outline">Create Account</a>
+        </div>
+    </div>
+
+    <div class="feature-row">
+        <div class="feature-box">
+            <div class="feature-icon">🤖</div>
+            <h3>ML Risk Detection</h3>
+            <p>Every login is analyzed by a trained Random Forest model to calculate a real-time credential theft risk score.</p>
+        </div>
+        <div class="feature-box">
+            <div class="feature-icon">🔍</div>
+            <h3>Explainable AI</h3>
+            <p>SHAP-based explanations show exactly which factors contributed to a risk score — no black-box decisions.</p>
+        </div>
+        <div class="feature-box">
+            <div class="feature-icon">🚨</div>
+            <h3>Real-Time Alerts</h3>
+            <p>High-risk login attempts automatically generate alerts for administrators to review and act on.</p>
+        </div>
+    </div>
+</body>
+</html>

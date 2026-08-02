@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin" class="active">Dashboard</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Admin Dashboard</h2>
+            <p class="subtitle">Credential Theft Detection System</p>
+
+            <div class="widget-row">
+                <div class="widget-card">
+                    <div class="label">Total Login Attempts</div>
+                    <div class="value">{{ stats.total_attempts }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">High Risk Events</div>
+                    <div class="value risk-high">{{ stats.high_risk }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Active Users</div>
+                    <div class="value risk-low">{{ stats.active_users }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Security Alerts</div>
+                    <div class="value {% if stats.total_alerts > 0 %}risk-high{% else %}risk-low{% endif %}">
+                        {{ stats.total_alerts }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3>Security Alerts</h3>
+                <p style="color:#9aa4b8; margin-bottom:16px;">Review flagged login attempts and take action.</p>
+                <a href="/admin/alerts" class="btn btn-danger">Review Suspicious</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

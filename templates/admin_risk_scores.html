@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Risk Scores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores" class="active">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Risk Scores</h2>
+            <p class="subtitle">Latest risk assessment for every student</p>
+
+            <div class="content-card">
+                {% for row in scores %}
+                    <div class="list-item" style="display:flex; justify-content:space-between;">
+                        <span>{{ row.First_name }} ({{ row.Email }})</span>
+                        <span class="{% if row.Risk_level == 'High' %}risk-high{% elif row.Risk_level == 'Medium' %}risk-medium{% else %}risk-low{% endif %}">
+                            {{ row.Risk_score }}%
+                        </span>
+                    </div>
+                {% endfor %}
+                {% if not scores %}
+                    <p style="color:#9aa4b8;">No risk data available yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

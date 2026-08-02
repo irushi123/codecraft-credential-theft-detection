@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Review Suspicious Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/alerts" class="active">Security Alerts</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Review Suspicious Login</h2>
+            <p class="subtitle">Review the suspicious login attempt and take appropriate action</p>
+
+            <div class="content-card" style="max-width:520px;">
+                {% if alert %}
+                    <p style="margin-bottom:16px;">
+                        <b>{{ alert.Email }}</b> —
+                        <span class="risk-high">{{ alert.Risk_score }}% Risk</span>
+                    </p>
+                    <p style="margin-bottom:20px; color:#9aa4b8;">{{ alert.Alert_message }}</p>
+                    <p style="margin-bottom:20px;">Status: {{ alert.Alert_status }}</p>
+
+                    <form method="POST" action="/admin/lock/{{ alert.Alert_ID }}" style="display:inline;">
+                        <button type="submit" class="btn btn-danger">Lock Account</button>
+                    </form>
+                    <form method="POST" action="/admin/false-positive/{{ alert.Alert_ID }}" style="display:inline;">
+                        <button type="submit" class="btn btn-success">Mark as False Positive</button>
+                    </form>
+                {% else %}
+                    <p>Alert not found.</p>
+                {% endif %}
+
+                {% if message %}
+                    <div class="message">{{ message }}</div>
+                {% endif %}
+            </div>
+
+            <a href="/admin/alerts" class="btn btn-primary">Back to Alerts</a>
+        </div>
+    </div>
+</body>
+</html>

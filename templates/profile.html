@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - My Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span></div>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/profile" class="active">My Profile</a>
+                <a href="/login-history">Login History</a>
+                <a href="/risk-scores">Risk Score</a>
+                <a href="/security-alerts">Security Alerts</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>My Profile</h2>
+            <p class="subtitle">Manage your account and personal information</p>
+
+            <div class="content-card" style="max-width:480px;">
+                <p style="margin-bottom:10px;"><b>Full Name:</b> {{ user.First_name }}</p>
+                <p style="margin-bottom:10px;"><b>Email:</b> {{ user.Email }}</p>
+                <p style="margin-bottom:10px;"><b>Role:</b> Student</p>
+                <p style="margin-bottom:10px;">
+                    <b>Account Status:</b>
+                    <span class="{{ 'status-locked' if user.Account_status == 'Locked' else 'status-active' }}">
+                        {{ user.Account_status }}
+                    </span>
+                </p>
+                <p style="margin-bottom:20px;">
+                    <b>Current Risk Score:</b>
+                    {% if risk %}
+                        <span class="{% if risk.Risk_level == 'High' %}risk-high{% elif risk.Risk_level == 'Medium' %}risk-medium{% else %}risk-low{% endif %}">
+                            {{ risk.Risk_score }}% ({{ risk.Risk_level }})
+                        </span>
+                    {% else %}
+                        No login data yet
+                    {% endif %}
+                </p>
+                <button type="button" class="btn btn-primary" onclick="alert('Edit profile feature coming soon.')">Edit Profile</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

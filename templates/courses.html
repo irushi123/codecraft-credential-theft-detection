@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - My Courses</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span></div>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/courses" class="active">My Courses</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>My Courses</h2>
+            <p class="subtitle">Course materials you are currently enrolled in</p>
+
+            <div class="content-card">
+                {% for course in courses %}
+                    <div class="list-item">
+                        <a href="/courses/{{ course.Course_ID }}">📘 {{ course.Course_name }}</a>
+                        <p style="color:#9aa4b8; font-size:13px; margin-top:6px;">
+                            {{ course.Description }}
+                        </p>
+                    </div>
+                {% endfor %}
+                {% if not courses %}
+                    <p style="color:#9aa4b8;">You are not enrolled in any courses yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
