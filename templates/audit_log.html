@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Audit Log</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log" class="active">Audit Log</a>
+                <a href="/admin/reports">Generate Reports</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Audit Log</h2>
+            <p class="subtitle">System activity log — all administrative actions (read-only)</p>
+
+            <div class="content-card">
+                <table>
+                    <tr>
+                        <th>Action ID</th><th>Admin</th><th>Target User</th><th>Action Type</th><th>Time</th>
+                    </tr>
+                    {% for row in actions %}
+                    <tr>
+                        <td>{{ row.Action_ID }}</td>
+                        <td>{{ row.Admin_Email }}</td>
+                        <td>{{ row.Target_Email }}</td>
+                        <td>{{ row.Action_type }}</td>
+                        <td>{{ row.Action_time }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not actions %}
+                    <p style="color:#9aa4b8;">No admin actions recorded yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

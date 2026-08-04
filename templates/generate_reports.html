@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Generate Reports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand"><span class="logo-mark">⬡</span>CodeCraft</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log">Audit Log</a>
+                <a href="/admin/export-form">Export Data</a>
+                <a href="/admin/reports" class="active">Generate Reports</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Generate Reports</h2>
+            <p class="subtitle">Analytical summary of login and risk data</p>
+
+            <div class="content-card" style="max-width:600px;">
+                <form method="GET" action="/admin/reports">
+                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Start Date</label>
+                    <input type="date" name="start_date" value="{{ start_date or '' }}" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
+
+                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">End Date</label>
+                    <input type="date" name="end_date" value="{{ end_date or '' }}" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
+
+                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Risk Level</label>
+                    <select name="risk_level" style="width:100%; padding:10px; margin-bottom:20px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
+                        <option value="" {% if not risk_level %}selected{% endif %}>All</option>
+                        <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
+                        <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
+                        <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
+                    </select>
+
+                    <input type="hidden" name="generated" value="1">
+                    <button type="submit" class="btn btn-primary" style="width:100%;">Generate Report</button>
+                </form>
+            </div>
+
+            {% if report %}
+            <div class="widget-row">
+                <div class="widget-card">
+                    <div class="label">Total Logins</div>
+                    <div class="value">{{ report.summary.total_logins or 0 }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Successful</div>
+                    <div class="value risk-low">{{ report.summary.successful_logins or 0 }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Failed</div>
+                    <div class="value risk-high">{{ report.summary.failed_logins or 0 }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Avg Risk Score</div>
+                    <div class="value">{{ report.summary.avg_risk_score or 0 }}%</div>
+                </div>
+            </div>
+
+            <div class="widget-row">
+                <div class="widget-card">
+                    <div class="label">High Risk Events</div>
+                    <div class="value risk-high">{{ report.summary.high_risk_count or 0 }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Medium Risk Events</div>
+                    <div class="value risk-medium">{{ report.summary.medium_risk_count or 0 }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Low Risk Events</div>
+                    <div class="value risk-low">{{ report.summary.low_risk_count or 0 }}</div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3>Detailed Records</h3>
+                <table>
+                    <tr>
+                        <th>Login ID</th><th>Email</th><th>Time</th><th>IP</th>
+                        <th>Status</th><th>Risk Score</th><th>Risk Level</th>
+                    </tr>
+                    {% for row in report.rows %}
+                    <tr>
+                        <td>{{ row.Login_ID }}</td>
+                        <td>{{ row.Email }}</td>
+                        <td>{{ row.Login_time }}</td>
+                        <td>{{ row.IP_address }}</td>
+                        <td class="{% if row.Login_status == 'Success' %}status-success{% else %}status-failed{% endif %}">
+                            {{ row.Login_status }}
+                        </td>
+                        <td>{{ row.Risk_score if row.Risk_score is not none else '-' }}</td>
+                        <td>
+                            {% if row.Risk_level == 'High' %}
+                                <span class="risk-high">{{ row.Risk_level }}</span>
+                            {% elif row.Risk_level == 'Medium' %}
+                                <span class="risk-medium">{{ row.Risk_level }}</span>
+                            {% elif row.Risk_level == 'Low' %}
+                                <span class="risk-low">{{ row.Risk_level }}</span>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not report.rows %}
+                    <p style="color:#9aa4b8;">No records found for the selected filters.</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

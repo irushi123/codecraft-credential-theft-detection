@@ -1,5 +1,7 @@
 import re
-from flask import Flask, render_template, request, session, redirect, url_for
+import csv
+import io
+from flask import Flask, render_template, request, session, redirect, url_for, Response
 from functools import wraps
 from utils.db_handler import (
     get_db_connection, check_email_exists, create_user, get_user_by_email,
@@ -9,7 +11,8 @@ from utils.db_handler import (
     get_alert_by_id, lock_user_account, mark_alert_false_positive, get_user_login_history,
     get_all_users, unlock_user_account, get_enrolled_courses, get_course_by_id,
     enroll_user_in_all_courses, get_user_by_id, get_latest_risk_score,
-    get_all_students_latest_risk, get_security_alerts_for_user, get_admin_dashboard_stats
+    get_all_students_latest_risk, get_security_alerts_for_user, get_admin_dashboard_stats,
+    get_all_admin_actions, update_user_password, get_login_attempts_for_export, get_report_data
 )
 from utils.ml_engine import get_login_context, generate_risk_score, generate_explanation
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -17,7 +20,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = 'codecraft_secret_key_2026'
 
-ALERT_THRESHOLD = 70
+ALERT_THRESHOLD = 95
 MAX_FAILED_ATTEMPTS = 5
 ALLOWED_EMAIL_DOMAINS = ['rjt.ac.lk', 'std.rjt.ac.lk', 'gmail.com']
 
@@ -128,7 +131,6 @@ def login():
 
         admin_flag = is_admin_user(user['User_ID'])
 
-        # --- Admin login path (no ML risk scoring — FK schema limitation) ---
         if admin_flag:
             if check_password_hash(user['Password'], password):
                 session['user_id'] = user['User_ID']
@@ -140,7 +142,6 @@ def login():
                 message = "Invalid email or password."
                 return render_template('login.html', message=message)
 
-        # --- Student login path ---
         if is_account_locked(user['User_ID']):
             message = "Your account has been locked due to multiple failed login attempts. Contact an administrator."
             return render_template('login.html', message=message)
@@ -221,7 +222,6 @@ def login_history():
     return render_template('login_history.html', history=history)
 
 
-
 @app.route('/security-alerts')
 @student_required
 def security_alerts_student():
@@ -236,6 +236,34 @@ def view_course(course_id):
     if not course:
         return "You are not enrolled in this course, or it does not exist. <a href='/dashboard'>Back</a>"
     return render_template('course_content.html', course=course)
+
+
+# ---------- Change Password route (Student + Admin) ----------
+@app.route('/change-password', methods=['GET', 'POST'])
+def change_password():
+    if 'user_id' not in session:
+        return "Please login first. <a href='/login'>Login</a>"
+
+    message = None
+    if request.method == 'POST':
+        current_password = request.form['current_password']
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+
+        user = get_user_by_id(session['user_id'])
+
+        if not check_password_hash(user['Password'], current_password):
+            message = "Current password is incorrect."
+        elif new_password != confirm_password:
+            message = "New password and confirmation do not match."
+        elif not is_strong_password(new_password):
+            message = "New password must be at least 8 characters long and include a letter, a number, and a special character."
+        else:
+            hashed = generate_password_hash(new_password)
+            update_user_password(session['user_id'], hashed)
+            message = "Password updated successfully."
+
+    return render_template('change_password.html', message=message)
 
 
 # =====================================================
@@ -321,6 +349,65 @@ def unlock_account(user_id):
     unlock_user_account(user_id, admin_id=session['user_id'])
     users = get_all_users()
     return render_template('manage_users.html', users=users, message="Account unlocked successfully.")
+
+
+@app.route('/admin/audit-log')
+@admin_required
+def audit_log():
+    actions = get_all_admin_actions()
+    return render_template('audit_log.html', actions=actions)
+
+
+@app.route('/admin/export')
+@admin_required
+def export_data():
+    start_date = request.args.get('start_date') or None
+    end_date = request.args.get('end_date') or None
+    risk_level = request.args.get('risk_level') or None
+
+    data = get_login_attempts_for_export(start_date, end_date, risk_level)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Login ID', 'Email', 'Login Time', 'IP Address', 'Status', 'Risk Score', 'Risk Level'])
+    for row in data:
+        writer.writerow([
+            row['Login_ID'], row['Email'], row['Login_time'], row['IP_address'],
+            row['Login_status'],
+            row['Risk_score'] if row['Risk_score'] is not None else '',
+            row['Risk_level'] if row['Risk_level'] is not None else ''
+        ])
+
+    csv_data = output.getvalue()
+    output.close()
+
+    return Response(
+        csv_data,
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=login_attempts_export.csv'}
+    )
+
+
+@app.route('/admin/export-form')
+@admin_required
+def export_form():
+    return render_template('export_data.html')
+
+@app.route('/admin/reports', methods=['GET'])
+@admin_required
+def generate_reports():
+    start_date = request.args.get('start_date') or None
+    end_date = request.args.get('end_date') or None
+    risk_level = request.args.get('risk_level') or None
+
+    report = None
+    if start_date or end_date or risk_level or request.args.get('generated') == '1':
+        report = get_report_data(start_date, end_date, risk_level)
+
+    return render_template(
+        'generate_reports.html', report=report,
+        start_date=start_date, end_date=end_date, risk_level=risk_level
+    )
 
 
 # ---------- Run the app ----------

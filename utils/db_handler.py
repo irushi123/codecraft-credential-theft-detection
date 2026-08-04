@@ -426,3 +426,103 @@ def get_admin_dashboard_stats():
         'active_users': active_users,
         'total_alerts': total_alerts
     }
+
+
+def get_all_admin_actions():
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            SELECT aa.Action_ID, admin_u.Email AS Admin_Email, 
+                   target_u.Email AS Target_Email, aa.Action_type, aa.Action_time
+            FROM admin_action aa
+            JOIN users admin_u ON aa.Admin_ID = admin_u.User_ID
+            JOIN users target_u ON aa.Target_User_ID = target_u.User_ID
+            ORDER BY aa.Action_time DESC
+        """)
+        results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def update_user_password(user_id, new_hashed_password):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE users SET Password = %s WHERE User_ID = %s",
+            (new_hashed_password, user_id)
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_login_attempts_for_export(start_date=None, end_date=None, risk_level=None):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        query = """
+            SELECT la.Login_ID, u.Email, la.Login_time, la.IP_address,
+                   la.Login_status, ra.Risk_score, ra.Risk_level
+            FROM login_attempt la
+            JOIN users u ON la.User_ID = u.User_ID
+            LEFT JOIN risk_assessment ra ON la.Login_ID = ra.Login_ID
+            WHERE 1=1
+        """
+        params = []
+        if start_date:
+            query += " AND la.Login_time >= %s"
+            params.append(start_date)
+        if end_date:
+            query += " AND la.Login_time <= %s"
+            params.append(end_date)
+        if risk_level:
+            query += " AND ra.Risk_level = %s"
+            params.append(risk_level)
+        query += " ORDER BY la.Login_time DESC"
+
+        cursor.execute(query, params)
+        results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def get_report_data(start_date=None, end_date=None, risk_level=None):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        base_where = "WHERE 1=1"
+        params = []
+        if start_date:
+            base_where += " AND la.Login_time >= %s"
+            params.append(start_date)
+        if end_date:
+            base_where += " AND la.Login_time <= %s"
+            params.append(end_date)
+        if risk_level:
+            base_where += " AND ra.Risk_level = %s"
+            params.append(risk_level)
+
+        cursor.execute(f"""
+            SELECT COUNT(*) AS total_logins,
+                   SUM(CASE WHEN la.Login_status = 'Success' THEN 1 ELSE 0 END) AS successful_logins,
+                   SUM(CASE WHEN la.Login_status = 'Failed' THEN 1 ELSE 0 END) AS failed_logins,
+                   SUM(CASE WHEN ra.Risk_level = 'High' THEN 1 ELSE 0 END) AS high_risk_count,
+                   SUM(CASE WHEN ra.Risk_level = 'Medium' THEN 1 ELSE 0 END) AS medium_risk_count,
+                   SUM(CASE WHEN ra.Risk_level = 'Low' THEN 1 ELSE 0 END) AS low_risk_count,
+                   ROUND(AVG(ra.Risk_score), 2) AS avg_risk_score
+            FROM login_attempt la
+            LEFT JOIN risk_assessment ra ON la.Login_ID = ra.Login_ID
+            {base_where}
+        """, params)
+        summary = cursor.fetchone()
+
+        cursor.execute(f"""
+            SELECT la.Login_ID, u.Email, la.Login_time, la.IP_address,
+                   la.Login_status, ra.Risk_score, ra.Risk_level
+            FROM login_attempt la
+            JOIN users u ON la.User_ID = u.User_ID
+            LEFT JOIN risk_assessment ra ON la.Login_ID = ra.Login_ID
+            {base_where}
+            ORDER BY la.Login_time DESC
+        """, params)
+        rows = cursor.fetchall()
+
+    conn.close()
+    return {'summary': summary, 'rows': rows}
