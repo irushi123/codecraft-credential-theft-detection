@@ -526,3 +526,26 @@ def get_report_data(start_date=None, end_date=None, risk_level=None):
 
     conn.close()
     return {'summary': summary, 'rows': rows}
+
+
+def submit_feedback(user_id, feedback_text):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO feedback (User_ID, Feedback_text) VALUES (%s, %s)",
+            (user_id, feedback_text)
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_user_feedback(user_id):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM feedback WHERE User_ID = %s ORDER BY Submitted_at DESC",
+            (user_id,)
+        )
+        results = cursor.fetchall()
+    conn.close()
+    return results

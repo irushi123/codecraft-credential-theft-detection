@@ -34,7 +34,7 @@ def get_geo_info(ip_address):
         return {'country': 'LK', 'asn': 9329, 'is_attack_ip': 0}
 
 
-def get_login_context(request, user_id=None, failed_attempts=0):
+def get_login_context(request, user_id=None, failed_attempts=0, is_locked=False):
     ip_address = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
     ua_string = request.headers.get('User-Agent', 'Unknown')
     ua = parse_user_agent(ua_string)
@@ -58,23 +58,32 @@ def get_login_context(request, user_id=None, failed_attempts=0):
     rtt = 45.0
     time_since_last = 24.0
 
-    # Repeated failed attempts before this login = brute-force-like pattern.
-    # The model's strongest predictive features are Country/Device/OS/Browser
-    # (confirmed via feature_importances_ in Colab: Country_RO=17.3%,
-    # Device Type_desktop=11.6%, OS Family_Mac OS=11.2%, Browser Family_Chrome=9.7%),
-    # so a sustained attack attempt is represented using those exact signals.
-    if failed_attempts >= 3:
+    # Progressive risk escalation based on failed attempt count, capped at
+    # ~75% maximum. Only Country_RO (the single strongest feature, 17.3%
+    # importance) plus RTT/time-since-last/country-changed signals are used —
+    # NOT the full Device/OS/Browser combination — to keep the ceiling below
+    # the 95% admin alert threshold while still clearly showing escalation
+    # as failed attempts increase.
+    if is_locked or failed_attempts >= 5:
         country = 'RO'
-        device_type = 'desktop'
-        os_family = 'Mac OS'
-        browser_family = 'Chrome'
         is_attack_ip = 1
-        rtt = 800.0
-        time_since_last = 0.02
+        rtt = 600.0
+        time_since_last = 0.05
         country_changed = 1
-    elif failed_attempts >= 1:
-        rtt = 200.0
+    elif failed_attempts >= 3:
+        country = 'RO'
+        is_attack_ip = 1
+        rtt = 450.0
+        time_since_last = 0.2
+        country_changed = 1
+    elif failed_attempts == 2:
+        country = 'RO'
+        rtt = 300.0
         time_since_last = 0.5
+        country_changed = 1
+    elif failed_attempts == 1:
+        rtt = 150.0
+        time_since_last = 2.0
 
     return {
         'IP_address': ip_address,

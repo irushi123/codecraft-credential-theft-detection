@@ -12,7 +12,8 @@ from utils.db_handler import (
     get_all_users, unlock_user_account, get_enrolled_courses, get_course_by_id,
     enroll_user_in_all_courses, get_user_by_id, get_latest_risk_score,
     get_all_students_latest_risk, get_security_alerts_for_user, get_admin_dashboard_stats,
-    get_all_admin_actions, update_user_password, get_login_attempts_for_export, get_report_data
+    get_all_admin_actions, update_user_password, get_login_attempts_for_export, get_report_data,
+    submit_feedback, get_user_feedback
 )
 from utils.ml_engine import get_login_context, generate_risk_score, generate_explanation
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -146,7 +147,8 @@ def login():
             message = "Your account has been locked due to multiple failed login attempts. Contact an administrator."
             return render_template('login.html', message=message)
 
-        context = get_login_context(request)
+        current_failed_count = get_recent_failed_attempt_count(user['User_ID'])
+        context = get_login_context(request, user_id=user['User_ID'], failed_attempts=current_failed_count)
 
         if check_password_hash(user['Password'], password):
             login_id = save_login_attempt(
@@ -264,6 +266,22 @@ def change_password():
             message = "Password updated successfully."
 
     return render_template('change_password.html', message=message)
+
+
+@app.route('/feedback', methods=['GET', 'POST'])
+@student_required
+def feedback():
+    message = None
+    if request.method == 'POST':
+        feedback_text = request.form.get('feedback_text', '').strip()
+        if feedback_text:
+            submit_feedback(session['user_id'], feedback_text)
+            message = "Thank you! Your feedback has been submitted."
+        else:
+            message = "Feedback cannot be empty."
+
+    history = get_user_feedback(session['user_id'])
+    return render_template('feedback.html', message=message, history=history)
 
 
 # =====================================================
@@ -392,6 +410,7 @@ def export_data():
 @admin_required
 def export_form():
     return render_template('export_data.html')
+
 
 @app.route('/admin/reports', methods=['GET'])
 @admin_required
