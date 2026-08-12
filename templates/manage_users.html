@@ -14,11 +14,15 @@
                 <a href="/admin/risk-scores">Risk Scores</a>
                 <a href="/admin/alerts">Security Alerts</a>
                 <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users" class="active">Manage Users</a>
+                < <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log">Audit Log</a>
+                <a href="/change-password">Change Password</a>
+                <a href="/admin/export-form">Export Data</a>
                 <a href="/admin/reports">Generate Reports</a>
-                <a href="/logout">Logout</a>
-            </nav>
-        </div>
+                {% if session.is_super_admin %}
+<a href="/admin/pending-admins">Pending Admins</a>
+{% endif %}
+a href="/logout">Logout</a>
 
         <div class="main-content">
             <h2>Manage Users</h2>

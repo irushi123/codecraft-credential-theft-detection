@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Rejection Log</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand"><span class="logo-mark">⬡</span>CodeCraft</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/rejection-log" class="active">Rejection Log</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Admin Rejection Log</h2>
+            <p class="subtitle">Audit trail of rejected admin registration requests</p>
+
+            <div class="content-card">
+                <table>
+                    <tr><th>Name</th><th>Email</th><th>Reason</th><th>Rejected By</th><th>Time</th></tr>
+                    {% for row in log %}
+                    <tr>
+                        <td>{{ row.Rejected_Name }}</td>
+                        <td>{{ row.Rejected_Email }}</td>
+                        <td>{{ row.Reason }}</td>
+                        <td>{{ row.Rejected_By_Email }}</td>
+                        <td>{{ row.Rejected_At }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not log %}
+                    <p style="color:#9aa4b8;">No rejections logged yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

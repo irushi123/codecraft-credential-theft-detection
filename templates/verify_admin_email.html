@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Verify Admin Email</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-box">
+        <h2>Code<span style="color:#1e5fd9;">Craft</span></h2>
+        <p style="color:#8b94a8; font-size:13px; margin-bottom:20px;">Admin Email Verification</p>
+        <form method="POST">
+            <input type="email" name="email" placeholder="Your Registered Email" required>
+            <input type="text" name="otp_code" placeholder="6-digit Verification Code" maxlength="6" required>
+            <button type="submit">Verify</button>
+        </form>
+        {% if message %}
+            <div class="message" style="{% if success %}background-color:#d4edda; color:#155724;{% endif %}">{{ message }}</div>
+        {% endif %}
+        <p style="margin-top:16px; font-size:13px;">
+            <a href="/login">Back to Login</a>
+        </p>
+    </div>
+</body>
+</html>

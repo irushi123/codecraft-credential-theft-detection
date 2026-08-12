@@ -18,6 +18,9 @@
                 <a href="/admin/audit-log">Audit Log</a>
                 <a href="/admin/export-form">Export Data</a>
                 <a href="/admin/reports" class="active">Generate Reports</a>
+                 {% if session.is_super_admin %}
+<a href="/admin/pending-admins">Pending Admins</a>
+{% endif %}
                 <a href="/logout">Logout</a>
             </nav>
         </div>

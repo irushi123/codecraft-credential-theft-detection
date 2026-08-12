@@ -12,6 +12,7 @@
                 <a href="/dashboard">Dashboard</a>
                 <a href="/profile" class="active">My Profile</a>
                 <a href="/change-password">Change Password</a>
+                <a href="/login-history">Login History</a>
                 <a href="/feedback">Feedback</a>
                 <a href="/logout">Logout</a>
             </nav>
@@ -22,6 +23,10 @@
             <p class="subtitle">Manage your account and personal information</p>
 
             <div class="content-card" style="max-width:480px;">
+                {% if user.Profile_image %}
+    <img src="{{ url_for('static', filename='uploads/' + user.Profile_image) }}" 
+         style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:16px;">
+{% endif %}
                 <p style="margin-bottom:10px;"><b>Full Name:</b> {{ user.First_name }}</p>
                 <p style="margin-bottom:10px;"><b>Email:</b> {{ user.Email }}</p>
                 <p style="margin-bottom:10px;"><b>Role:</b> Student</p>
@@ -41,7 +46,7 @@
                         No login data yet
                     {% endif %}
                 </p>
-                <button type="button" class="btn btn-primary" onclick="alert('Edit profile feature coming soon.')">Edit Profile</button>
+                <a href="/profile/edit" class="btn btn-primary" style="text-decoration:none;">Edit Profile</a>
             </div>
         </div>
     </div>

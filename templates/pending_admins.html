@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Pending Admin Approvals</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand"><span class="logo-mark">⬡</span>CodeCraft</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/pending-admins" class="active">Pending Admins</a>
+                <a href="/admin/rejection-log">Rejection Log</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Pending Admin Approvals</h2>
+            <p class="subtitle">Verify identity via university email OTP before approving</p>
+
+            {% if message %}
+                <div class="content-card"><p style="color:#f5a623;">{{ message }}</p></div>
+            {% endif %}
+
+            <div class="content-card">
+                <table>
+                    <tr><th>Name</th><th>Email</th><th>Status</th><th>Actions</th></tr>
+                    {% for row in pending %}
+                    <tr>
+                        <td>{{ row.First_name }}</td>
+                        <td>{{ row.Email }}</td>
+                        <td>
+                            {% if row.Approval_status == 'OTP_Sent' %}
+                                <span class="risk-medium">Awaiting Verification</span>
+                            {% else %}
+                                <span class="risk-high">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="POST" action="/admin/send-otp/{{ row.User_ID }}" style="display:inline;">
+                                <button type="submit" class="btn btn-primary">
+                                    {% if row.Approval_status == 'OTP_Sent' %}Resend OTP{% else %}Send OTP{% endif %}
+                                </button>
+                            </form>
+                            <details style="display:inline-block; margin-left:6px;">
+                                <summary class="btn btn-danger" style="cursor:pointer;">Reject</summary>
+                                <form method="POST" action="/admin/reject/{{ row.User_ID }}" style="margin-top:8px;">
+                                    <textarea name="reason" placeholder="Reason for rejection (required)" required
+                                        style="width:220px; padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:12px;"></textarea><br>
+                                    <button type="submit" class="btn btn-danger" style="margin-top:6px;">Confirm Reject</button>
+                                </form>
+                            </details>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not pending %}
+                    <p style="color:#9aa4b8;">No pending admin requests.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
