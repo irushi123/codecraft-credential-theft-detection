@@ -2,7 +2,10 @@ import re
 import csv
 import io
 import os
-
+import smtplib
+import random
+from datetime import timedelta
+from email.mime.text import MIMEText
 from functools import wraps
 
 from flask import (
@@ -73,7 +76,18 @@ from utils.db_handler import (
     # Forgot Password
     save_password_reset_otp,
     verify_password_reset_otp,
-    reset_user_password
+    reset_user_password,
+    check_and_update_reset_rate_limit,
+
+    # System Settings & Notifications & Import
+    get_setting,
+    get_all_settings,
+    update_setting,
+    create_notification,
+    get_user_notifications,
+    mark_notifications_read,
+    get_unread_count,
+    bulk_import_courses
 )
 
 from utils.ml_engine import (
@@ -82,10 +96,64 @@ from utils.ml_engine import (
     generate_explanation
 )
 
-from utils.mailer import (
-    generate_otp,
-    send_otp_email
-)
+# =====================================================
+# EMAIL CONFIGURATION (OTP)
+# =====================================================
+
+# ⚠️ DEMO CONFIG — replace with real SMTP credentials for production use.
+# Leave blank to run in "console mode": OTP is printed to the server
+# terminal only (never shown in the browser), so the flow can still be
+# demoed end-to-end without a live inbox, without leaking the code to
+# whoever is looking at the page.
+SENDER_EMAIL = "codecraft678@gmail.com"       # e.g. "codecraft.security@gmail.com"
+SENDER_PASSWORD = "ivkg ycxp txzd jiwv"    # e.g. Gmail App Password (not your normal password)
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+
+
+def generate_otp():
+    """Generate a 6-digit OTP."""
+    return str(random.randint(100000, 999999))
+
+
+def send_otp_email(to_email, name, otp_code):
+    """
+    Sends the OTP to the user's email.
+    Returns (success: bool, mode: str) — mode is 'sent' or 'console'.
+    The OTP value is NEVER returned to the caller for display in the UI —
+    it is only ever printed to the server console in demo mode.
+    """
+    subject = "CodeCraft Verification Code"
+    body = (
+        f"Hello {name},\n\n"
+        f"Your CodeCraft verification code is: {otp_code}\n\n"
+        f"This code expires in 10 minutes. If you did not request this, "
+        f"please ignore this email.\n\n"
+        f"— CodeCraft Security Team"
+    )
+
+    if not SENDER_EMAIL or not SENDER_PASSWORD:
+        # Console/demo mode — no real SMTP configured.
+        # OTP is printed to the SERVER TERMINAL ONLY — never sent back
+        # to the browser/user-facing response.
+        print(f"\n[DEMO MODE] OTP for {to_email}: {otp_code}\n")
+        return True, "console"
+
+    try:
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = SENDER_EMAIL
+        msg["To"] = to_email
+
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.sendmail(SENDER_EMAIL, [to_email], msg.as_string())
+        return True, "sent"
+    except Exception as e:
+        print(f"[MAIL ERROR] {e} — falling back to console mode")
+        print(f"[DEMO MODE] OTP for {to_email}: {otp_code}\n")
+        return True, "console"
 
 
 # =====================================================
@@ -96,19 +164,25 @@ app = Flask(__name__)
 
 app.secret_key = 'codecraft_secret_key_2026'
 
+# Auto-logout after this much continuous inactivity.
+app.permanent_session_lifetime = timedelta(minutes=15)
+
 
 # =====================================================
 # SECURITY SETTINGS
 # =====================================================
 
-ALERT_THRESHOLD = 80
+# NOTE: ALERT_THRESHOLD is now fetched dynamically from the DB
+# via get_setting('alert_threshold_admin', 80)
 
 MAX_FAILED_ATTEMPTS = 5
 
+# Only official campus email addresses may register/login.
+# (Generic providers like gmail.com/yahoo.com etc. are intentionally
+# NOT allowed anymore.)
 ALLOWED_EMAIL_DOMAINS = [
-    'rjt.ac.lk',
-    'std.rjt.ac.lk',
-    'gmail.com'
+    'as.rjt.ac.lk',
+    'std.rjt.ac.lk'
 ]
 
 
@@ -152,7 +226,6 @@ os.makedirs(
 # =====================================================
 
 def allowed_image_file(filename):
-
     return (
         '.' in filename
         and filename.rsplit(
@@ -164,7 +237,6 @@ def allowed_image_file(filename):
 
 
 def is_valid_email(email):
-
     return (
         re.match(
             EMAIL_REGEX,
@@ -175,7 +247,6 @@ def is_valid_email(email):
 
 
 def is_strong_password(password):
-
     if len(password) < 8:
         return False
 
@@ -205,10 +276,8 @@ def is_strong_password(password):
 # =====================================================
 
 def admin_required(f):
-
     @wraps(f)
     def decorated(*args, **kwargs):
-
         if (
             'user_id' not in session
             or not session.get('is_admin')
@@ -227,10 +296,8 @@ def admin_required(f):
 
 
 def student_required(f):
-
     @wraps(f)
     def decorated(*args, **kwargs):
-
         if (
             'user_id' not in session
             or session.get('is_admin')
@@ -249,10 +316,8 @@ def student_required(f):
 
 
 def super_admin_required(f):
-
     @wraps(f)
     def decorated(*args, **kwargs):
-
         if (
             'user_id' not in session
             or not session.get('is_super_admin')
@@ -276,7 +341,6 @@ def super_admin_required(f):
 
 @app.route('/')
 def home():
-
     return render_template(
         'home.html'
     )
@@ -288,19 +352,14 @@ def home():
 
 @app.route('/test-db')
 def test_db():
-
     try:
-
         conn = get_db_connection()
-
         conn.close()
-
         return (
             "✅ Database connection successful!"
         )
 
     except Exception as e:
-
         return (
             f"❌ Database connection failed: "
             f"{str(e)}"
@@ -316,11 +375,9 @@ def test_db():
     methods=['GET', 'POST']
 )
 def register():
-
     message = None
 
     if request.method == 'POST':
-
         first_name = request.form.get(
             'first_name',
             ''
@@ -348,28 +405,25 @@ def register():
         )
 
         if not first_name:
-
             message = (
                 "First name cannot be empty."
             )
 
         elif not is_valid_email(email):
-
             message = (
                 "Please enter a valid email address "
                 "(e.g., name@example.com)."
             )
 
         elif email_domain not in ALLOWED_EMAIL_DOMAINS:
-
             message = (
-                "Registration failed. Please use "
-                "an allowed institutional email "
-                f"(e.g., @{ALLOWED_EMAIL_DOMAINS[0]})."
+                "Registration failed. Only official campus email "
+                "addresses are allowed "
+                f"(e.g., @{ALLOWED_EMAIL_DOMAINS[0]} or "
+                f"@{ALLOWED_EMAIL_DOMAINS[1]})."
             )
 
         elif not is_strong_password(password):
-
             message = (
                 "Password must be at least 8 characters "
                 "long and include a letter, a number, "
@@ -377,19 +431,16 @@ def register():
             )
 
         elif check_email_exists(email):
-
             message = (
                 "Account already exists with this email."
             )
 
         else:
-
             hashed_password = generate_password_hash(
                 password
             )
 
             if role == 'Admin':
-
                 create_admin(
                     first_name,
                     "N/A",
@@ -405,7 +456,6 @@ def register():
                 )
 
             else:
-
                 user_id = create_user(
                     first_name,
                     "N/A",
@@ -440,18 +490,15 @@ def register():
     methods=['GET', 'POST']
 )
 def login():
-
     message = None
 
     if request.args.get('registered') == '1':
-
         message = (
             "Registration successful! "
             "Please login with your new account."
         )
 
     elif request.args.get('admin_pending') == '1':
-
         message = (
             "Admin registration submitted. "
             "Your account is pending approval "
@@ -459,14 +506,12 @@ def login():
         )
 
     elif request.args.get('reset') == '1':
-
         message = (
             "Password reset successful! "
             "Please login with your new password."
         )
 
     if request.method == 'POST':
-
         email = request.form.get(
             'email',
             ''
@@ -482,7 +527,6 @@ def login():
         )
 
         if not user:
-
             message = (
                 "Invalid email or password."
             )
@@ -501,12 +545,10 @@ def login():
         # =================================================
 
         if admin_flag:
-
             if check_password_hash(
                 user['Password'],
                 password
             ):
-
                 approval_status = (
                     get_admin_approval_status(
                         user['User_ID']
@@ -514,7 +556,6 @@ def login():
                 )
 
                 if approval_status == 'OTP_Sent':
-
                     message = (
                         "Your email verification is pending. "
                         "Check your inbox for the code, or ask "
@@ -527,7 +568,6 @@ def login():
                     )
 
                 elif approval_status != 'Approved':
-
                     message = (
                         "Your admin account is pending "
                         "approval by a Super Admin."
@@ -558,6 +598,9 @@ def login():
                     )
                 )
 
+                # Enable inactivity-based auto-logout for this session
+                session.permanent = True
+
                 return redirect(
                     url_for(
                         'admin_dashboard'
@@ -565,7 +608,6 @@ def login():
                 )
 
             else:
-
                 message = (
                     "Invalid email or password."
                 )
@@ -582,7 +624,6 @@ def login():
         if is_account_locked(
             user['User_ID']
         ):
-
             message = (
                 "Your account has been locked due "
                 "to multiple failed login attempts. "
@@ -602,7 +643,6 @@ def login():
             user['Password'],
             password
         ):
-
             login_id = save_login_attempt(
                 user['User_ID'],
                 context['IP_address'],
@@ -635,8 +675,15 @@ def login():
                 confidence
             )
 
-            if risk_score >= ALERT_THRESHOLD:
+            # ---- Dynamic alert threshold from DB ----
+            admin_threshold = float(
+                get_setting(
+                    'alert_threshold_admin',
+                    80
+                ) or 80
+            )
 
+            if risk_score >= admin_threshold:
                 alert_message = (
                     "High Risk Login Detected - "
                     f"{user['Email']} "
@@ -646,6 +693,11 @@ def login():
                 create_security_alert(
                     risk_id,
                     alert_message
+                )
+
+                create_notification(
+                    user['User_ID'],
+                    f"A high-risk login was detected on your account (Risk {risk_score}%). Please review your activity."
                 )
 
             session['user_id'] = (
@@ -664,6 +716,9 @@ def login():
 
             session['is_super_admin'] = False
 
+            # Enable inactivity-based auto-logout for this session
+            session.permanent = True
+
             return redirect(
                 url_for(
                     'student_dashboard'
@@ -671,7 +726,6 @@ def login():
             )
 
         else:
-
             save_login_attempt(
                 user['User_ID'],
                 context['IP_address'],
@@ -686,9 +740,13 @@ def login():
             )
 
             if failed_count >= MAX_FAILED_ATTEMPTS:
-
                 lock_account_by_user_id(
                     user['User_ID']
+                )
+
+                create_notification(
+                    user['User_ID'],
+                    "Your account was locked due to multiple failed login attempts. Contact an administrator to unlock it."
                 )
 
                 message = (
@@ -697,7 +755,6 @@ def login():
                 )
 
             else:
-
                 remaining = (
                     MAX_FAILED_ATTEMPTS
                     - failed_count
@@ -724,42 +781,48 @@ def login():
     methods=['GET', 'POST']
 )
 def forgot_password():
-
     message = None
 
     if request.method == 'POST':
-
         email = request.form.get(
             'email',
             ''
         ).strip()
 
         if not email:
-
             message = (
                 "Please enter your email address."
             )
 
         elif not is_valid_email(email):
-
             message = (
                 "Please enter a valid email address."
             )
 
         else:
-
             user = get_user_by_email(
                 email
             )
 
             if not user:
-
                 message = (
                     "No account was found with "
                     "this email address."
                 )
 
             else:
+                # ---- Rate limit: max N requests per window ----
+                allowed, wait_message = check_and_update_reset_rate_limit(
+                    email
+                )
+
+                if not allowed:
+                    message = wait_message
+
+                    return render_template(
+                        'forgot_password.html',
+                        message=message
+                    )
 
                 otp = generate_otp()
 
@@ -769,38 +832,29 @@ def forgot_password():
                     expiry_minutes=10
                 )
 
-                success, mode = send_otp_email(
+                # OTP is sent by email (or logged to the server console
+                # in demo mode) — it is NEVER included in the response
+                # shown to the user in the browser.
+                send_otp_email(
                     user['Email'],
                     user['First_name'],
                     otp
                 )
 
-                if mode == "console":
-
-                    message = (
-                        f"OTP generated for {email}. "
-                        "SMTP is not configured. "
-                        f"Demo OTP: {otp}"
+                return redirect(
+                    url_for(
+                        'reset_password',
+                        email=email,
+                        sent='1'
                     )
-
-                else:
-
-                    message = (
-                        "Verification code sent "
-                        "to your email."
-                    )
-
-                return render_template(
-                    'reset_password.html',
-                    email=email,
-                    message=message
                 )
 
+    # ---- Fallback: GET requests, and any POST branch above that ----
+    # ---- only set `message` without returning a response yet     ----
     return render_template(
         'forgot_password.html',
         message=message
     )
-
 
 # =====================================================
 # RESET PASSWORD
@@ -811,7 +865,6 @@ def forgot_password():
     methods=['GET', 'POST']
 )
 def reset_password():
-
     message = None
 
     email = request.args.get(
@@ -819,8 +872,13 @@ def reset_password():
         ''
     )
 
-    if request.method == 'POST':
+    if request.method == 'GET' and request.args.get('sent') == '1':
+        message = (
+            "A verification code has been sent to your "
+            "email address. Please check your inbox."
+        )
 
+    if request.method == 'POST':
         email = request.form.get(
             'email',
             ''
@@ -842,25 +900,21 @@ def reset_password():
         )
 
         if not email:
-
             message = (
                 "Please enter your email."
             )
 
         elif not otp_code:
-
             message = (
                 "Please enter the verification code."
             )
 
         elif not new_password:
-
             message = (
                 "Please enter a new password."
             )
 
         elif new_password != confirm_password:
-
             message = (
                 "New password and confirmation "
                 "do not match."
@@ -869,7 +923,6 @@ def reset_password():
         elif not is_strong_password(
             new_password
         ):
-
             message = (
                 "Password must be at least 8 "
                 "characters long and include "
@@ -878,7 +931,6 @@ def reset_password():
             )
 
         else:
-
             valid, otp_message = (
                 verify_password_reset_otp(
                     email,
@@ -887,11 +939,9 @@ def reset_password():
             )
 
             if not valid:
-
                 message = otp_message
 
             else:
-
                 hashed_password = (
                     generate_password_hash(
                         new_password
@@ -926,12 +976,10 @@ def reset_password():
     methods=['GET', 'POST']
 )
 def verify_admin_email():
-
     message = None
     success = False
 
     if request.method == 'POST':
-
         email = request.form.get(
             'email',
             ''
@@ -962,9 +1010,7 @@ def verify_admin_email():
 
 @app.route('/logout')
 def logout():
-
     session.clear()
-
     return redirect(
         url_for('home')
     )
@@ -977,7 +1023,6 @@ def logout():
 @app.route('/dashboard')
 @student_required
 def student_dashboard():
-
     history = get_user_login_history(
         session['user_id']
     )
@@ -1003,7 +1048,6 @@ def student_dashboard():
 @app.route('/profile')
 @student_required
 def profile():
-
     user = get_user_by_id(
         session['user_id']
     )
@@ -1025,7 +1069,6 @@ def profile():
 )
 @student_required
 def edit_profile():
-
     message = None
 
     user = get_user_by_id(
@@ -1033,7 +1076,6 @@ def edit_profile():
     )
 
     if request.method == 'POST':
-
         first_name = request.form.get(
             'first_name',
             ''
@@ -1045,19 +1087,16 @@ def edit_profile():
         ).strip()
 
         if not first_name:
-
             message = (
                 "Name cannot be empty."
             )
 
         elif not is_valid_email(email):
-
             message = (
                 "Please enter a valid email address."
             )
 
         else:
-
             profile_image_filename = None
 
             file = request.files.get(
@@ -1065,11 +1104,9 @@ def edit_profile():
             )
 
             if file and file.filename:
-
                 if allowed_image_file(
                     file.filename
                 ):
-
                     filename = secure_filename(
                         f"user_"
                         f"{session['user_id']}_"
@@ -1088,7 +1125,6 @@ def edit_profile():
                     )
 
                 else:
-
                     message = (
                         "Invalid image format. "
                         "Only PNG, JPG, JPEG allowed."
@@ -1127,7 +1163,6 @@ def edit_profile():
 @app.route('/login-history')
 @student_required
 def login_history():
-
     history = get_user_login_history(
         session['user_id']
     )
@@ -1141,7 +1176,6 @@ def login_history():
 @app.route('/security-alerts')
 @student_required
 def security_alerts_student():
-
     alerts = get_security_alerts_for_user(
         session['user_id']
     )
@@ -1157,14 +1191,12 @@ def security_alerts_student():
 )
 @student_required
 def view_course(course_id):
-
     course = get_course_by_id(
         course_id,
         session['user_id']
     )
 
     if not course:
-
         return (
             "You are not enrolled in this course, "
             "or it does not exist. "
@@ -1186,9 +1218,7 @@ def view_course(course_id):
     methods=['GET', 'POST']
 )
 def change_password():
-
     if 'user_id' not in session:
-
         return (
             "Please login first. "
             "<a href='/login'>Login</a>"
@@ -1197,7 +1227,6 @@ def change_password():
     message = None
 
     if request.method == 'POST':
-
         current_password = request.form.get(
             'current_password',
             ''
@@ -1221,13 +1250,11 @@ def change_password():
             user['Password'],
             current_password
         ):
-
             message = (
                 "Current password is incorrect."
             )
 
         elif new_password != confirm_password:
-
             message = (
                 "New password and confirmation "
                 "do not match."
@@ -1236,7 +1263,6 @@ def change_password():
         elif not is_strong_password(
             new_password
         ):
-
             message = (
                 "New password must be at least "
                 "8 characters long and include "
@@ -1245,7 +1271,6 @@ def change_password():
             )
 
         else:
-
             hashed = generate_password_hash(
                 new_password
             )
@@ -1275,18 +1300,15 @@ def change_password():
 )
 @student_required
 def feedback():
-
     message = None
 
     if request.method == 'POST':
-
         feedback_text = request.form.get(
             'feedback_text',
             ''
         ).strip()
 
         if feedback_text:
-
             submit_feedback(
                 session['user_id'],
                 feedback_text
@@ -1298,7 +1320,6 @@ def feedback():
             )
 
         else:
-
             message = (
                 "Feedback cannot be empty."
             )
@@ -1321,7 +1342,6 @@ def feedback():
 @app.route('/admin')
 @admin_required
 def admin_dashboard():
-
     stats = get_admin_dashboard_stats()
 
     return render_template(
@@ -1333,7 +1353,6 @@ def admin_dashboard():
 @app.route('/admin/login-attempts')
 @admin_required
 def admin_login_attempts():
-
     attempts = get_all_login_attempts()
 
     return render_template(
@@ -1345,7 +1364,6 @@ def admin_login_attempts():
 @app.route('/admin/risk-scores')
 @admin_required
 def admin_risk_scores():
-
     scores = get_all_students_latest_risk()
 
     return render_template(
@@ -1357,7 +1375,6 @@ def admin_risk_scores():
 @app.route('/admin/explanations')
 @admin_required
 def admin_explanations():
-
     explanations = get_all_explanations()
 
     return render_template(
@@ -1369,7 +1386,6 @@ def admin_explanations():
 @app.route('/admin/alerts')
 @admin_required
 def admin_alerts():
-
     alerts = get_all_alerts()
 
     return render_template(
@@ -1383,7 +1399,6 @@ def admin_alerts():
 )
 @admin_required
 def review_alert(alert_id):
-
     alert = get_alert_by_id(
         alert_id
     )
@@ -1401,13 +1416,11 @@ def review_alert(alert_id):
 )
 @admin_required
 def lock_account(alert_id):
-
     alert = get_alert_by_id(
         alert_id
     )
 
     if alert:
-
         lock_user_account(
             alert['User_ID'],
             admin_id=session['user_id']
@@ -1419,7 +1432,6 @@ def lock_account(alert_id):
         )
 
     else:
-
         message = (
             "Alert not found."
         )
@@ -1437,13 +1449,11 @@ def lock_account(alert_id):
 )
 @admin_required
 def false_positive(alert_id):
-
     alert = get_alert_by_id(
         alert_id
     )
 
     if alert:
-
         mark_alert_false_positive(
             alert_id,
             admin_id=session['user_id'],
@@ -1455,7 +1465,6 @@ def false_positive(alert_id):
         )
 
     else:
-
         message = (
             "Alert not found."
         )
@@ -1470,7 +1479,6 @@ def false_positive(alert_id):
 @app.route('/admin/users')
 @admin_required
 def manage_users():
-
     users = get_all_users()
 
     return render_template(
@@ -1486,7 +1494,6 @@ def manage_users():
 )
 @admin_required
 def unlock_account(user_id):
-
     unlock_user_account(
         user_id,
         admin_id=session['user_id']
@@ -1504,7 +1511,6 @@ def unlock_account(user_id):
 @app.route('/admin/audit-log')
 @admin_required
 def audit_log():
-
     actions = get_all_admin_actions()
 
     return render_template(
@@ -1520,7 +1526,6 @@ def audit_log():
 @app.route('/admin/export')
 @admin_required
 def export_data():
-
     start_date = (
         request.args.get('start_date')
         or None
@@ -1557,7 +1562,6 @@ def export_data():
     ])
 
     for row in data:
-
         writer.writerow([
             row['Login_ID'],
             row['Email'],
@@ -1594,7 +1598,6 @@ def export_data():
 @app.route('/admin/export-form')
 @admin_required
 def export_form():
-
     return render_template(
         'export_data.html'
     )
@@ -1610,7 +1613,6 @@ def export_form():
 )
 @admin_required
 def generate_reports():
-
     start_date = (
         request.args.get('start_date')
         or None
@@ -1634,7 +1636,6 @@ def generate_reports():
         or risk_level
         or request.args.get('generated') == '1'
     ):
-
         report = get_report_data(
             start_date,
             end_date,
@@ -1657,7 +1658,6 @@ def generate_reports():
 @app.route('/admin/pending-admins')
 @super_admin_required
 def pending_admins():
-
     pending = get_pending_admins()
 
     return render_template(
@@ -1673,7 +1673,6 @@ def pending_admins():
 )
 @super_admin_required
 def approve_admin_route(user_id):
-
     approve_admin(
         user_id,
         approver_id=session['user_id']
@@ -1694,19 +1693,16 @@ def approve_admin_route(user_id):
 )
 @super_admin_required
 def send_otp_route(user_id):
-
     person = get_admin_name_email(
         user_id
     )
 
     if not person:
-
         message = (
             "Admin request not found."
         )
 
     else:
-
         otp = generate_otp()
 
         save_admin_otp(
@@ -1721,7 +1717,6 @@ def send_otp_route(user_id):
         )
 
         if mode == "console":
-
             message = (
                 f"OTP generated for "
                 f"{person['Email']}. "
@@ -1731,7 +1726,6 @@ def send_otp_route(user_id):
             )
 
         else:
-
             message = (
                 f"Verification code sent to "
                 f"{person['Email']}."
@@ -1752,14 +1746,12 @@ def send_otp_route(user_id):
 )
 @super_admin_required
 def reject_admin_route(user_id):
-
     reason = request.form.get(
         'reason',
         ''
     ).strip()
 
     if not reason:
-
         pending = get_pending_admins()
 
         return render_template(
@@ -1791,7 +1783,6 @@ def reject_admin_route(user_id):
 @app.route('/admin/rejection-log')
 @super_admin_required
 def rejection_log():
-
     log = get_rejection_log()
 
     return render_template(
@@ -1801,11 +1792,88 @@ def rejection_log():
 
 
 # =====================================================
+# STUDENT NOTIFICATIONS
+# =====================================================
+
+@app.route('/notifications')
+def notifications():
+    if 'user_id' not in session:
+        return "Please login first. <a href='/login'>Login</a>"
+
+    notes = get_user_notifications(session['user_id'])
+    mark_notifications_read(session['user_id'])
+    return render_template('notifications.html', notifications=notes)
+
+
+# =====================================================
+# SUPER ADMIN — SYSTEM SETTINGS (Risk Thresholds)
+# =====================================================
+
+@app.route('/admin/settings', methods=['GET', 'POST'])
+@super_admin_required
+def system_settings():
+    message = None
+    if request.method == 'POST':
+        for key in request.form:
+            value = request.form[key].strip()
+            if value:
+                update_setting(key, value)
+        message = "Settings updated successfully."
+
+    settings = get_all_settings()
+    return render_template('system_settings.html', settings=settings, message=message)
+
+
+# =====================================================
+# ADMIN — IMPORT DATA (Bulk Course Import)
+# =====================================================
+
+@app.route('/admin/import', methods=['GET', 'POST'])
+@admin_required
+def import_data():
+    message = None
+    if request.method == 'POST':
+        file = request.files.get('csv_file')
+        if not file or not file.filename.endswith('.csv'):
+            message = "Please upload a valid .csv file."
+        else:
+            try:
+                stream = io.StringIO(file.stream.read().decode('utf-8'))
+                reader = csv.reader(stream)
+                next(reader, None)  # skip header row
+                course_list = [
+                    (row[0].strip(), row[1].strip() if len(row) > 1 else '')
+                    for row in reader if row
+                ]
+                inserted, skipped = bulk_import_courses(course_list)
+                message = f"Import complete: {inserted} course(s) added, {skipped} duplicate(s) skipped."
+            except Exception as e:
+                message = f"Import failed: {str(e)}"
+
+    return render_template('import_data.html', message=message)
+
+
+# =====================================================
+# SESSION TIMEOUT HANDLER
+# =====================================================
+# Refreshes the sliding-expiration timer on every request, so an
+# active user never gets logged out mid-use. If MAX inactivity
+# (app.permanent_session_lifetime) is exceeded, Flask's session
+# cookie will have already expired and 'user_id' will no longer be
+# present, so the @student_required / @admin_required decorators
+# will naturally redirect to login.
+
+@app.before_request
+def refresh_session():
+    session.permanent = True
+    session.modified = True
+
+
+# =====================================================
 # RUN APPLICATION
 # =====================================================
 
 if __name__ == '__main__':
-
     app.run(
         debug=False,
         port=9000
