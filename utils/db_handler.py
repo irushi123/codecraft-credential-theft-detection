@@ -1339,12 +1339,15 @@ def get_pending_admins():
                 u.User_ID,
                 u.First_name,
                 u.Email,
-                a.Admin_role
+                a.Admin_role,
+                a.Approval_status
             FROM admin a
             JOIN users u
                 ON a.User_ID = u.User_ID
-            WHERE a.Approval_status = 'Pending'
-            ORDER BY u.User_ID DESC
+            WHERE a.Approval_status IN ('Pending', 'OTP_Sent')
+            ORDER BY
+                a.Approval_status ASC,
+                u.User_ID DESC
             """
         )
 
@@ -1844,3 +1847,180 @@ def reset_user_password(
 
     conn.commit()
     conn.close()
+
+
+# =====================================================
+# SYSTEM SETTINGS (Risk Thresholds)
+# =====================================================
+
+def get_setting(key, default=None):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT Setting_value FROM system_settings WHERE Setting_key = %s",
+            (key,)
+        )
+        result = cursor.fetchone()
+    conn.close()
+    return result['Setting_value'] if result else default
+
+
+def get_all_settings():
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT * FROM system_settings ORDER BY Setting_key")
+        results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def update_setting(key, value):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "UPDATE system_settings SET Setting_value = %s WHERE Setting_key = %s",
+            (value, key)
+        )
+    conn.commit()
+    conn.close()
+
+
+# =====================================================
+# NOTIFICATIONS
+# =====================================================
+
+def create_notification(user_id, message):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO notification (User_ID, Message) VALUES (%s, %s)",
+            (user_id, message)
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_user_notifications(user_id, unread_only=False):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        query = "SELECT * FROM notification WHERE User_ID = %s"
+        if unread_only:
+            query += " AND Is_read = 0"
+        query += " ORDER BY Created_at DESC"
+        cursor.execute(query, (user_id,))
+        results = cursor.fetchall()
+    conn.close()
+    return results
+
+
+def mark_notifications_read(user_id):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute("UPDATE notification SET Is_read = 1 WHERE User_ID = %s", (user_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_unread_count(user_id):
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM notification WHERE User_ID = %s AND Is_read = 0",
+            (user_id,)
+        )
+        result = cursor.fetchone()
+    conn.close()
+    return result['cnt']
+
+
+# =====================================================
+# IMPORT DATA (Bulk Course Import)
+# =====================================================
+
+def bulk_import_courses(course_list):
+    conn = get_db_connection()
+    inserted, skipped = 0, 0
+    with conn.cursor() as cursor:
+        for course_name, description in course_list:
+            cursor.execute("SELECT Course_ID FROM course WHERE Course_name = %s", (course_name,))
+            if cursor.fetchone():
+                skipped += 1
+                continue
+            cursor.execute(
+                "INSERT INTO course (Course_name, Description) VALUES (%s, %s)",
+                (course_name, description)
+            )
+            inserted += 1
+    conn.commit()
+    conn.close()
+    return inserted, skipped   
+
+
+# =====================================================
+# PASSWORD RESET RATE LIMITING
+# =====================================================
+
+MAX_RESET_REQUESTS = 3
+RESET_WINDOW_MINUTES = 15
+
+
+def check_and_update_reset_rate_limit(email):
+    """
+    Returns (allowed: bool, wait_message: str or None).
+    Limits a single email to MAX_RESET_REQUESTS OTP requests
+    within a RESET_WINDOW_MINUTES rolling window.
+    """
+    conn = get_db_connection()
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT Password_Reset_Request_Count, Password_Reset_Window_Start
+            FROM users WHERE Email = %s
+            """,
+            (email,)
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            conn.close()
+            return True, None
+
+        now = datetime.now()
+        window_start = row['Password_Reset_Window_Start']
+        count = row['Password_Reset_Request_Count'] or 0
+
+        # No window yet, or window expired -> start a fresh one
+        if window_start is None or (now - window_start) > timedelta(minutes=RESET_WINDOW_MINUTES):
+            cursor.execute(
+                """
+                UPDATE users
+                SET Password_Reset_Request_Count = 1,
+                    Password_Reset_Window_Start = %s
+                WHERE Email = %s
+                """,
+                (now, email)
+            )
+            conn.commit()
+            conn.close()
+            return True, None
+
+        # Still inside window -> check limit
+        if count >= MAX_RESET_REQUESTS:
+            minutes_left = RESET_WINDOW_MINUTES - int((now - window_start).total_seconds() // 60)
+            conn.close()
+            return False, (
+                f"Too many verification code requests. "
+                f"Please try again in {max(minutes_left, 1)} minute(s)."
+            )
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET Password_Reset_Request_Count = Password_Reset_Request_Count + 1
+            WHERE Email = %s
+            """,
+            (email,)
+        )
+        conn.commit()
+        conn.close()
+        return True, None
