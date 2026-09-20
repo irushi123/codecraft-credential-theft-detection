@@ -9,7 +9,7 @@
         <h2>Code<span style="color:#1e5fd9;">Craft</span></h2>
         <p style="color:#8b94a8; font-size:13px; margin-bottom:20px;">Admin Email Verification</p>
         <form method="POST">
-            <input type="email" name="email" placeholder="Your Registered Email" required>
+            <input type="email" name="email" placeholder="Your Registered Email" value="{{ prefill_email or '' }}" required>
             <input type="text" name="otp_code" placeholder="6-digit Verification Code" maxlength="6" required>
             <button type="submit">Verify</button>
         </form>

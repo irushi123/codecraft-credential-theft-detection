@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Data Restore</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/monitoring">System Monitoring</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log">Audit Log</a>
+                <a href="/change-password">Change Password</a>
+                <a href="/admin/export-form">Export Data</a>
+                <a href="/admin/settings">System Settings</a>
+                <a href="/admin/import">Import Data</a>
+                <a href="/admin/reports">Generate Reports</a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore" class="active">Data Restore</a>
+                {% endif %}
+                <a href="/help">Help &amp; Support</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Data Restore</h2>
+            <p class="subtitle">Restore the database from an encrypted backup — this overwrites current data</p>
+
+            {% if message %}
+                <div class="content-card">
+                    <p style="color:{% if 'failed' in message.lower() or 'not found' in message.lower() or 'confirm' in message.lower() or 'aborted' in message.lower() or 'decrypted' in message.lower() %}#e05555{% else %}#3fc97a{% endif %};">
+                        {{ message }}
+                    </p>
+                </div>
+            {% endif %}
+
+            <div class="content-card" style="border-left:3px solid #e05555;">
+                <p style="color:#e05555; font-weight:600; margin-bottom:4px;">⚠️ Warning</p>
+                <p style="color:#9aa4b8; font-size:13px;">
+                    Restoring will overwrite all current data in the database with the contents of the selected
+                    backup. This action cannot be undone. Consider creating a fresh backup first.
+                </p>
+            </div>
+
+            <div class="content-card">
+                <h3>Restore from an existing backup</h3>
+                <table>
+                    <tr>
+                        <th>Backup File</th>
+                        <th>Size</th>
+                        <th>Action</th>
+                    </tr>
+                    {% for b in backups %}
+                    <tr>
+                        <td>{{ b.name }}</td>
+                        <td>{{ b.size_kb }} KB</td>
+                        <td>
+                            <form method="POST" style="display:inline;"
+                                onsubmit="return confirm('Restore from {{ b.name }}? This will overwrite ALL current data and cannot be undone.');">
+                                <input type="hidden" name="source" value="existing">
+                                <input type="hidden" name="backup_filename" value="{{ b.name }}">
+                                <input type="hidden" name="confirm" value="yes">
+                                <button type="submit" class="btn btn-danger">Restore</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+                {% if not backups %}
+                    <p style="color:#9aa4b8; margin-top:12px;">No backups available. Create one from the Data Backup page first.</p>
+                {% endif %}
+            </div>
+
+            <div class="content-card">
+                <h3>Restore from an uploaded backup file</h3>
+                <form method="POST" enctype="multipart/form-data"
+                    onsubmit="return confirm('Restore from the uploaded file? This will overwrite ALL current data and cannot be undone.');">
+                    <input type="hidden" name="source" value="upload">
+                    <input type="hidden" name="confirm" value="yes">
+                    <input type="file" name="backup_file" accept=".enc" required
+                        style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
+                    <button type="submit" class="btn btn-danger" style="margin-left:8px;">Upload &amp; Restore</button>
+                </form>
+                <p style="color:#9aa4b8; font-size:12px; margin-top:10px;">
+                    Only accepts encrypted (.enc) backup files created by this system.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

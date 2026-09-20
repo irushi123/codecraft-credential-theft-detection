@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Import Data</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/import" class="active">Import Data</a>
+                <a href="/admin/export-form">Export Data</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+        <div class="main-content">
+            <h2>Import Data</h2>
+            <p class="subtitle">Upload a CSV file to bulk-import courses. Format: Course_name, Description</p>
+
+            <div class="content-card" style="max-width:480px;">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="file" name="csv_file" accept=".csv" required
+                        style="width:100%; padding:10px 0; margin-bottom:14px; color:#fff;">
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">Import</button>
+                </form>
+                {% if message %}
+                    <div class="message">{{ message }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

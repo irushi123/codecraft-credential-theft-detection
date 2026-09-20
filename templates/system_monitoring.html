@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - System Monitoring</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/monitoring" class="active">System Monitoring</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log">Audit Log</a>
+                <a href="/change-password">Change Password</a>
+                <a href="/admin/export-form">Export Data</a>
+                <a href="/admin/settings">System Settings</a>
+                <a href="/admin/import">Import Data</a>
+                <a href="/admin/reports">Generate Reports</a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore">Data Restore</a>
+                {% endif %}
+                <a href="/help">Help &amp; Support</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>System Monitoring</h2>
+            <p class="subtitle">Live system status and key operational metrics</p>
+
+            <div class="content-card" style="border-left:3px solid {% if db_ok %}#3fc97a{% else %}#e05555{% endif %};">
+                <p style="color:#9aa4b8; font-size:12px; margin-bottom:4px;">Database Connection</p>
+                <p style="font-size:16px; font-weight:600; color:{% if db_ok %}#3fc97a{% else %}#e05555{% endif %};">
+                    {{ db_status }}
+                </p>
+            </div>
+
+            <div class="widget-row">
+                <div class="widget-card">
+                    <div class="label">Server Uptime</div>
+                    <div class="value">{{ uptime }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Total Students</div>
+                    <div class="value">{{ stats.total_students }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Total Admins</div>
+                    <div class="value">{{ stats.total_admins }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Locked Accounts</div>
+                    <div class="value {% if stats.locked_accounts > 0 %}risk-high{% else %}risk-low{% endif %}">
+                        {{ stats.locked_accounts }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="widget-row">
+                <div class="widget-card">
+                    <div class="label">Logins Today</div>
+                    <div class="value">{{ stats.attempts_today }}</div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Failed Logins (24h)</div>
+                    <div class="value {% if stats.failed_last_24h > 0 %}risk-medium{% else %}risk-low{% endif %}">
+                        {{ stats.failed_last_24h }}
+                    </div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Pending Security Alerts</div>
+                    <div class="value {% if stats.pending_alerts > 0 %}risk-high{% else %}risk-low{% endif %}">
+                        {{ stats.pending_alerts }}
+                    </div>
+                </div>
+                <div class="widget-card">
+                    <div class="label">Pending Admin Approvals</div>
+                    <div class="value {% if stats.pending_admin_approvals > 0 %}risk-medium{% else %}risk-low{% endif %}">
+                        {{ stats.pending_admin_approvals }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3>Backup Status</h3>
+                <p style="color:#9aa4b8; margin-bottom:8px;">
+                    {{ backup_count }} backup(s) stored.
+                    {% if latest_backup %}
+                        Most recent: <strong>{{ latest_backup }}</strong>
+                    {% else %}
+                        No backups have been created yet.
+                    {% endif %}
+                </p>
+                <a href="/admin/backup" class="btn btn-primary" style="text-decoration:none; display:inline-block;">Go to Data Backup</a>
+            </div>
+
+            <div class="content-card">
+                <p style="color:#9aa4b8; font-size:12px;">
+                    Server started: {{ server_start }}
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

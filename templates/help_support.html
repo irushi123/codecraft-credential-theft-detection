@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Help & Support</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span></div>
+            <nav>
+                {% if session.is_admin %}
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/monitoring">System Monitoring</a>
+                <a href="/admin/login-attempts">Login Attempts</a>
+                <a href="/admin/risk-scores">Risk Scores</a>
+                <a href="/admin/alerts">Security Alerts</a>
+                <a href="/admin/explanations">Explanation Summary</a>
+                <a href="/admin/users">Manage Users</a>
+                <a href="/admin/audit-log">Audit Log</a>
+                <a href="/change-password">Change Password</a>
+                <a href="/admin/export-form">Export Data</a>
+                <a href="/admin/settings">System Settings</a>
+                <a href="/admin/import">Import Data</a>
+                <a href="/admin/reports">Generate Reports</a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore">Data Restore</a>
+                {% endif %}
+                <a href="/help" class="active">Help &amp; Support</a>
+                <a href="/logout">Logout</a>
+                {% else %}
+                <a href="/dashboard">Dashboard</a>
+                <a href="/profile">My Profile</a>
+                <a href="/login-history">Login History</a>
+                <a href="/change-password">Change Password</a>
+                <a href="/feedback">Feedback</a>
+                <a href="/notifications">Notifications</a>
+                <a href="/help" class="active">Help &amp; Support</a>
+                <a href="/logout">Logout</a>
+                {% endif %}
+            </nav>
+        </div>
+
+        <div class="main-content">
+            <h2>Help &amp; Support</h2>
+            <p class="subtitle">Frequently asked questions and how to reach us</p>
+
+            <div class="content-card">
+                <h3>Frequently Asked Questions</h3>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">Why was my account locked?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        Accounts are automatically locked after 5 consecutive failed login attempts, as a security
+                        measure. Contact an administrator to have your account unlocked.
+                    </p>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">I forgot my password. What do I do?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        Go to the <a href="/forgot-password" style="color:#1e5fd9;">Forgot Password</a> page and enter
+                        your registered email. You'll receive a verification code to reset your password.
+                    </p>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">Why do I see a "risk score" on my login history?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        The system analyzes each login attempt (time, location, device) and assigns a risk score to
+                        help detect potential credential theft. A high score doesn't always mean something is wrong —
+                        it's a signal for administrators to review.
+                    </p>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">I received a security alert notification. Should I worry?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        It means a login attempt on your account was flagged as high-risk. If it wasn't you, change
+                        your password immediately and contact an administrator. If it was you, no action is needed —
+                        it will be reviewed automatically.
+                    </p>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">Why can't I register with my personal email?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        Only official campus email addresses are accepted for registration, to ensure only verified
+                        students and staff can access the system.
+                    </p>
+                </div>
+
+                <div style="margin-top:16px;">
+                    <p style="font-weight:600; color:#dbe4f0;">How long until I'm automatically logged out?</p>
+                    <p style="color:#9aa4b8; margin-top:4px;">
+                        Sessions expire after 15 minutes of inactivity for security. Simply log in again to continue.
+                    </p>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <h3>Still need help?</h3>
+                <p style="color:#9aa4b8; margin-top:8px;">
+                    If your question isn't answered above, reach out to the CodeCraft support team:
+                </p>
+                <p style="color:#dbe4f0; margin-top:8px;">
+                    📧 Email: <a href="mailto:codecraft678@gmail.com" style="color:#1e5fd9;">codecraft678@gmail.com</a>
+                </p>
+                <p style="color:#dbe4f0; margin-top:4px;">
+                    🏫 In person: Department of Computing, Faculty of Applied Science, Rajarata University of Sri Lanka
+                </p>
+                <p style="color:#9aa4b8; margin-top:10px; font-size:12px;">
+                    Feedback about the system? Use the <a href="/feedback" style="color:#1e5fd9;">Feedback</a> page.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

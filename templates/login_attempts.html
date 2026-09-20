@@ -10,6 +10,7 @@
             <div class="brand">Code<span>Craft</span> Admin</div>
             <nav>
                 <a href="/admin">Dashboard</a>
+                <a href="/admin/monitoring">System Monitoring</a>
                 <a href="/admin/login-attempts" class="active">Login Attempts</a>
                 <a href="/admin/risk-scores">Risk Scores</a>
                 <a href="/admin/alerts">Security Alerts</a>
@@ -18,10 +19,15 @@
                 <a href="/admin/audit-log">Audit Log</a>
                 <a href="/change-password">Change Password</a>
                 <a href="/admin/export-form">Export Data</a>
+                <a href="/admin/settings">System Settings</a>
+                <a href="/admin/import">Import Data</a>
                 <a href="/admin/reports">Generate Reports</a>
                 {% if session.is_super_admin %}
-<a href="/admin/pending-admins">Pending Admins</a>
-{% endif %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore">Data Restore</a>
+                {% endif %}
+                <a href="/help">Help &amp; Support</a>
                 <a href="/logout">Logout</a>
             </nav>
         </div>
@@ -31,6 +37,38 @@
             <p class="subtitle">System-wide log of every login attempt</p>
 
             <div class="content-card">
+                <form method="GET" action="/admin/login-attempts" style="display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:16px;">
+                    <div>
+                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">From</label>
+                        <input type="date" name="start_date" value="{{ start_date }}"
+                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">To</label>
+                        <input type="date" name="end_date" value="{{ end_date }}"
+                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">Risk Level</label>
+                        <select name="risk_level"
+                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
+                            <option value="" {% if not risk_level %}selected{% endif %}>All</option>
+                            <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
+                            <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
+                            <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">Email / IP contains</label>
+                        <input type="text" name="search" value="{{ search }}" placeholder="e.g. student@as.rjt.ac.lk or 192.168"
+                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px; width:220px;">
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="/admin/login-attempts" class="btn btn-danger" style="text-decoration:none; display:inline-block;">Clear</a>
+                    </div>
+                </form>
+
                 <table>
                     <tr>
                         <th>User</th><th>Date</th><th>IP Address</th><th>Status</th><th>Risk Score</th>
@@ -53,6 +91,9 @@
                     </tr>
                     {% endfor %}
                 </table>
+                {% if not attempts %}
+                    <p style="color:#9aa4b8; margin-top:12px;">No login attempts match the current filters.</p>
+                {% endif %}
             </div>
         </div>
     </div>

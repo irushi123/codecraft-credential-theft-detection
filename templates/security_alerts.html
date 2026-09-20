@@ -17,8 +17,18 @@
                 <a href="/admin/users">Manage Users</a>
                 <a href="/admin/export-form">Export Data</a>
                 <a href="/admin/reports">Generate Reports</a>
-                
+                <a href="/admin/settings">System Settings</a>
+                <a href="/admin/import">Import Data</a>
+                <a href="/admin/reports">Generate Reports</a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore">Data Restore</a>
+                {% endif %}
+                <a href="/help">Help &amp; Support</a>
                 <a href="/logout">Logout</a>
+                
+                
             </nav>
         </div>
 

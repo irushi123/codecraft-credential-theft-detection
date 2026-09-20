@@ -553,6 +553,65 @@ def get_all_students_latest_risk():
 # ADMIN DASHBOARD
 # =====================================================
 
+def get_system_monitoring_stats():
+    conn = get_db_connection()
+
+    with conn.cursor() as cursor:
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM normal_user"
+        )
+        total_students = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM admin"
+        )
+        total_admins = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM users "
+            "WHERE Account_status = 'Locked'"
+        )
+        locked_accounts = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM admin "
+            "WHERE Approval_status IN ('Pending', 'OTP_Sent')"
+        )
+        pending_admin_approvals = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM login_attempt "
+            "WHERE DATE(Login_time) = CURDATE()"
+        )
+        attempts_today = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM login_attempt "
+            "WHERE Login_status = 'Failed' "
+            "AND Login_time >= NOW() - INTERVAL 24 HOUR"
+        )
+        failed_last_24h = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT COUNT(*) AS cnt FROM security_alert "
+            "WHERE Alert_status = 'Pending'"
+        )
+        pending_alerts = cursor.fetchone()["cnt"]
+
+    conn.close()
+
+    return {
+        "total_students": total_students,
+        "total_admins": total_admins,
+        "locked_accounts": locked_accounts,
+        "pending_admin_approvals": pending_admin_approvals,
+        "attempts_today": attempts_today,
+        "failed_last_24h": failed_last_24h,
+        "pending_alerts": pending_alerts,
+    }
+
+
 def get_admin_dashboard_stats():
     conn = get_db_connection()
 
@@ -613,13 +672,22 @@ def get_admin_dashboard_stats():
 # LOGIN ATTEMPTS / EXPLANATIONS
 # =====================================================
 
-def get_all_login_attempts():
+def get_all_login_attempts(
+    start_date=None,
+    end_date=None,
+    risk_level=None,
+    search=None,
+):
+    """
+    Returns all login attempts, newest first. All filters are
+    optional — calling with no arguments preserves the original
+    unfiltered behavior used elsewhere in the app.
+    """
     conn = get_db_connection()
 
     with conn.cursor() as cursor:
 
-        cursor.execute(
-            """
+        query = """
             SELECT
                 la.Login_ID,
                 u.Email,
@@ -633,8 +701,54 @@ def get_all_login_attempts():
                 ON la.User_ID = u.User_ID
             LEFT JOIN risk_assessment ra
                 ON la.Login_ID = ra.Login_ID
-            ORDER BY la.Login_time DESC
-            """
+            WHERE 1=1
+        """
+
+        params = []
+
+        if start_date:
+
+            query += (
+                " AND la.Login_time >= %s"
+            )
+
+            params.append(start_date)
+
+        if end_date:
+
+            query += (
+                " AND la.Login_time <= %s"
+            )
+
+            params.append(end_date)
+
+        if risk_level:
+
+            query += (
+                " AND ra.Risk_level = %s"
+            )
+
+            params.append(risk_level)
+
+        if search:
+
+            query += (
+                " AND (u.Email LIKE %s "
+                "OR la.IP_address LIKE %s)"
+            )
+
+            like_term = f"%{search}%"
+
+            params.append(like_term)
+            params.append(like_term)
+
+        query += (
+            " ORDER BY la.Login_time DESC"
+        )
+
+        cursor.execute(
+            query,
+            params,
         )
 
         results = cursor.fetchall()
@@ -1519,6 +1633,118 @@ def verify_admin_otp(
         "Email verified successfully! "
         "Your admin account is now approved. "
         "You can log in.",
+    )
+
+
+def save_admin_login_otp(
+    user_id,
+    otp_code,
+    expiry_minutes=10,
+):
+    """
+    Stores a one-time login verification code for an ALREADY-APPROVED
+    admin. This does NOT touch Approval_status — it's a separate,
+    per-login 2FA step, independent of the one-time registration
+    approval/verification flow.
+    """
+    expiry = (
+        datetime.now()
+        + timedelta(minutes=expiry_minutes)
+    )
+
+    conn = get_db_connection()
+
+    with conn.cursor() as cursor:
+
+        cursor.execute(
+            """
+            UPDATE admin
+            SET
+                Otp_code = %s,
+                Otp_expiry = %s
+            WHERE User_ID = %s
+            """,
+            (
+                otp_code,
+                expiry,
+                user_id,
+            ),
+        )
+
+    conn.commit()
+    conn.close()
+
+
+def verify_admin_login_otp(
+    user_id,
+    otp_code,
+):
+    conn = get_db_connection()
+
+    with conn.cursor() as cursor:
+
+        cursor.execute(
+            """
+            SELECT
+                Otp_code,
+                Otp_expiry
+            FROM admin
+            WHERE User_ID = %s
+            """,
+            (user_id,),
+        )
+
+        row = cursor.fetchone()
+
+        if not row or not row["Otp_code"]:
+
+            conn.close()
+
+            return (
+                False,
+                "No verification code was requested. "
+                "Please login again.",
+            )
+
+        if row["Otp_code"] != otp_code:
+
+            conn.close()
+
+            return (
+                False,
+                "Incorrect verification code.",
+            )
+
+        if (
+            row["Otp_expiry"] is None
+            or datetime.now() > row["Otp_expiry"]
+        ):
+
+            conn.close()
+
+            return (
+                False,
+                "This code has expired. "
+                "Please login again to get a new one.",
+            )
+
+        cursor.execute(
+            """
+            UPDATE admin
+            SET
+                Otp_code = NULL,
+                Otp_expiry = NULL
+            WHERE User_ID = %s
+            """,
+            (user_id,),
+        )
+
+    conn.commit()
+    conn.close()
+
+    return (
+        True,
+        "Verified successfully.",
     )
 
 

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - System Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span> Admin</div>
+            <nav>
+                <a href="/admin">Dashboard</a>
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/settings" class="active">System Settings</a>
+                <a href="/admin/import">Import Data</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+        <div class="main-content">
+            <h2>System Settings</h2>
+            <p class="subtitle">Configure risk thresholds. Thresholds must be logical (Medium &lt; High).</p>
+
+            <div class="content-card" style="max-width:500px;">
+                <form method="POST">
+                    {% for s in settings %}
+                    <label style="font-size:13px; color:#9aa4b8;">{{ s.Setting_key.replace('_', ' ').title() }}</label>
+                    <input type="text" name="{{ s.Setting_key }}" value="{{ s.Setting_value }}"
+                        style="width:100%; padding:10px 12px; margin:6px 0 14px; border:1px solid #4a4f5e; border-radius:6px; background:#2b2f3a; color:#fff;">
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">Save Settings</button>
+                </form>
+                {% if message %}
+                    <div class="message">{{ message }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

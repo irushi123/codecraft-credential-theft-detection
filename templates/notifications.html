@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeCraft - Notifications</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-wrapper">
+        <div class="sidebar">
+            <div class="brand">Code<span>Craft</span></div>
+            <nav>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/notifications" class="active">Notifications</a>
+                <a href="/profile">My Profile</a>
+                <a href="/logout">Logout</a>
+            </nav>
+        </div>
+        <div class="main-content">
+            <h2>Notifications</h2>
+            <div class="content-card">
+                {% for n in notifications %}
+                    <div class="list-item">
+                        <p>{{ n.Message }}</p>
+                        <p style="font-size:12px; color:#9aa4b8; margin-top:4px;">{{ n.Created_at }}</p>
+                    </div>
+                {% endfor %}
+                {% if not notifications %}
+                    <p style="color:#9aa4b8;">No notifications yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

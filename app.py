@@ -4,9 +4,12 @@ import io
 import os
 import smtplib
 import random
-from datetime import timedelta
+import subprocess
+from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from functools import wraps
+
+from cryptography.fernet import Fernet, InvalidToken
 
 from flask import (
     Flask,
@@ -15,7 +18,8 @@ from flask import (
     session,
     redirect,
     url_for,
-    Response
+    Response,
+    send_from_directory
 )
 
 from werkzeug.utils import secure_filename
@@ -55,6 +59,7 @@ from utils.db_handler import (
     get_all_students_latest_risk,
     get_security_alerts_for_user,
     get_admin_dashboard_stats,
+    get_system_monitoring_stats,
     get_all_admin_actions,
     update_user_password,
     get_login_attempts_for_export,
@@ -72,6 +77,10 @@ from utils.db_handler import (
     get_admin_name_email,
     reject_admin_with_reason,
     get_rejection_log,
+
+    # Admin login 2FA (separate from registration-approval OTP)
+    save_admin_login_otp,
+    verify_admin_login_otp,
 
     # Forgot Password
     save_password_reset_otp,
@@ -164,6 +173,9 @@ app = Flask(__name__)
 
 app.secret_key = 'codecraft_secret_key_2026'
 
+# Used to display server uptime on the System Monitoring page.
+APP_START_TIME = datetime.now()
+
 # Auto-logout after this much continuous inactivity.
 app.permanent_session_lifetime = timedelta(minutes=15)
 
@@ -219,6 +231,57 @@ os.makedirs(
     UPLOAD_FOLDER,
     exist_ok=True
 )
+
+
+# =====================================================
+# DATA BACKUP SETTINGS
+# =====================================================
+
+BACKUP_FOLDER = 'backups'
+
+# The encryption key is generated once and stored locally — it is
+# NEVER committed to git (add backup.key and backups/ to .gitignore).
+# Anyone with this key can decrypt your backups, so treat it like a
+# password.
+BACKUP_KEY_PATH = 'backup.key'
+
+# ⚠️ If mysqldump is not on your system PATH, replace this with the
+# full path, e.g.:
+# r"C:\xampp\mysql\bin\mysqldump.exe"
+# r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe"
+MYSQLDUMP_PATH = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe"
+
+# The mysql client (used for restoring) lives in the same bin folder
+# as mysqldump.
+MYSQL_PATH = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
+
+# Must match the credentials used in utils/db_handler.py get_db_connection()
+DB_BACKUP_HOST = 'localhost'
+DB_BACKUP_USER = 'root'
+DB_BACKUP_PASSWORD = 'root'
+DB_BACKUP_NAME = 'codecraft_db'
+
+os.makedirs(
+    BACKUP_FOLDER,
+    exist_ok=True
+)
+
+
+def get_or_create_backup_key():
+    """
+    Loads the Fernet encryption key from disk, generating and
+    saving a new one on first use.
+    """
+    if os.path.exists(BACKUP_KEY_PATH):
+        with open(BACKUP_KEY_PATH, 'rb') as f:
+            return f.read()
+
+    key = Fernet.generate_key()
+
+    with open(BACKUP_KEY_PATH, 'wb') as f:
+        f.write(key)
+
+    return key
 
 
 # =====================================================
@@ -556,15 +619,13 @@ def login():
                 )
 
                 if approval_status == 'OTP_Sent':
-                    message = (
-                        "Your email verification is pending. "
-                        "Check your inbox for the code, or ask "
-                        "a Super Admin to resend it."
-                    )
-
-                    return render_template(
-                        'login.html',
-                        message=message
+                    # Send them straight to the email-verification
+                    # page instead of leaving them stuck on /login.
+                    return redirect(
+                        url_for(
+                            'verify_admin_email',
+                            email=email
+                        )
                     )
 
                 elif approval_status != 'Approved':
@@ -578,32 +639,60 @@ def login():
                         message=message
                     )
 
-                session['user_id'] = (
+                # ---- Super Admins skip the login-time OTP step  ----
+                # ---- entirely — they log in directly, since they ----
+                # ---- are the ones who approve/send OTPs to other ----
+                # ---- admins in the first place.                  ----
+                if is_super_admin(
                     user['User_ID']
-                )
-
-                session['email'] = (
-                    user['Email']
-                )
-
-                session['first_name'] = (
-                    user['First_name']
-                )
-
-                session['is_admin'] = True
-
-                session['is_super_admin'] = (
-                    is_super_admin(
+                ):
+                    session['user_id'] = (
                         user['User_ID']
                     )
+
+                    session['email'] = (
+                        user['Email']
+                    )
+
+                    session['first_name'] = (
+                        user['First_name']
+                    )
+
+                    session['is_admin'] = True
+
+                    session['is_super_admin'] = True
+
+                    session.permanent = True
+
+                    return redirect(
+                        url_for(
+                            'admin_dashboard'
+                        )
+                    )
+
+                # ---- Regular (non-super) admin is approved:      ----
+                # ---- password correct, but we still require a    ----
+                # ---- fresh login-time OTP (2FA) before creating   ----
+                # ---- the actual session.                         ----
+                otp = generate_otp()
+
+                save_admin_login_otp(
+                    user['User_ID'],
+                    otp
                 )
 
-                # Enable inactivity-based auto-logout for this session
-                session.permanent = True
+                send_otp_email(
+                    user['Email'],
+                    user['First_name'],
+                    otp
+                )
+
+                # Temporary marker — NOT a real logged-in session yet.
+                session['pending_admin_id'] = user['User_ID']
 
                 return redirect(
                     url_for(
-                        'admin_dashboard'
+                        'admin_login_verify'
                     )
                 )
 
@@ -768,6 +857,92 @@ def login():
 
     return render_template(
         'login.html',
+        message=message
+    )
+
+
+# =====================================================
+# ADMIN LOGIN — OTP VERIFICATION (2FA, every login)
+# =====================================================
+
+@app.route(
+    '/admin/login-verify',
+    methods=['GET', 'POST']
+)
+def admin_login_verify():
+    message = None
+
+    # No admin currently mid-login -> nothing to verify, back to login.
+    if 'pending_admin_id' not in session:
+        return redirect(
+            url_for('login')
+        )
+
+    if request.method == 'POST':
+        otp_code = request.form.get(
+            'otp_code',
+            ''
+        ).strip()
+
+        pending_user_id = session[
+            'pending_admin_id'
+        ]
+
+        valid, otp_message = (
+            verify_admin_login_otp(
+                pending_user_id,
+                otp_code
+            )
+        )
+
+        if not valid:
+            message = otp_message
+
+            return render_template(
+                'admin_login_verify.html',
+                message=message
+            )
+
+        # OTP correct — now create the real session.
+        user = get_user_by_id(
+            pending_user_id
+        )
+
+        session.pop(
+            'pending_admin_id',
+            None
+        )
+
+        session['user_id'] = (
+            user['User_ID']
+        )
+
+        session['email'] = (
+            user['Email']
+        )
+
+        session['first_name'] = (
+            user['First_name']
+        )
+
+        session['is_admin'] = True
+
+        session['is_super_admin'] = (
+            is_super_admin(
+                user['User_ID']
+            )
+        )
+
+        session.permanent = True
+
+        return redirect(
+            url_for(
+                'admin_dashboard'
+            )
+        )
+
+    return render_template(
+        'admin_login_verify.html',
         message=message
     )
 
@@ -969,6 +1144,7 @@ def reset_password():
 
 # =====================================================
 # PUBLIC ADMIN OTP VERIFICATION
+# (registration-approval verification — one time only)
 # =====================================================
 
 @app.route(
@@ -979,11 +1155,19 @@ def verify_admin_email():
     message = None
     success = False
 
+    # Pre-fill the email field when redirected here from /login.
+    prefill_email = request.args.get(
+        'email',
+        ''
+    ).strip()
+
     if request.method == 'POST':
         email = request.form.get(
             'email',
             ''
         ).strip()
+
+        prefill_email = email
 
         otp_code = request.form.get(
             'otp_code',
@@ -1000,7 +1184,25 @@ def verify_admin_email():
     return render_template(
         'verify_admin_email.html',
         message=message,
-        success=success
+        success=success,
+        prefill_email=prefill_email
+    )
+
+
+# =====================================================
+# LOGOUT
+# =====================================================
+
+@app.route('/help')
+def help_support():
+    if 'user_id' not in session:
+        return (
+            "Please login first. "
+            "<a href='/login'>Login</a>"
+        )
+
+    return render_template(
+        'help_support.html'
     )
 
 
@@ -1350,14 +1552,120 @@ def admin_dashboard():
     )
 
 
+@app.route('/admin/monitoring')
+@admin_required
+def system_monitoring():
+    # ---- Database connectivity check ----
+    try:
+        conn = get_db_connection()
+        conn.close()
+        db_status = "Connected"
+        db_ok = True
+
+    except Exception as e:
+        db_status = f"Disconnected — {str(e)}"
+        db_ok = False
+
+    stats = get_system_monitoring_stats()
+
+    # ---- Server uptime ----
+    uptime_delta = (
+        datetime.now()
+        - APP_START_TIME
+    )
+
+    total_seconds = int(
+        uptime_delta.total_seconds()
+    )
+
+    days, remainder = divmod(
+        total_seconds,
+        86400
+    )
+
+    hours, remainder = divmod(
+        remainder,
+        3600
+    )
+
+    minutes, _ = divmod(
+        remainder,
+        60
+    )
+
+    uptime_str = (
+        f"{days}d {hours}h {minutes}m"
+    )
+
+    # ---- Backup status ----
+    backup_count = 0
+    latest_backup = None
+
+    if os.path.exists(BACKUP_FOLDER):
+        backup_files = sorted(
+            [
+                f for f in os.listdir(BACKUP_FOLDER)
+                if f.endswith('.enc')
+            ],
+            reverse=True
+        )
+
+        backup_count = len(backup_files)
+
+        if backup_files:
+            latest_backup = backup_files[0]
+
+    return render_template(
+        'system_monitoring.html',
+        db_status=db_status,
+        db_ok=db_ok,
+        stats=stats,
+        uptime=uptime_str,
+        server_start=APP_START_TIME.strftime(
+            '%Y-%m-%d %H:%M:%S'
+        ),
+        backup_count=backup_count,
+        latest_backup=latest_backup
+    )
+
+
 @app.route('/admin/login-attempts')
 @admin_required
 def admin_login_attempts():
-    attempts = get_all_login_attempts()
+    start_date = (
+        request.args.get('start_date')
+        or None
+    )
+
+    end_date = (
+        request.args.get('end_date')
+        or None
+    )
+
+    risk_level = (
+        request.args.get('risk_level')
+        or None
+    )
+
+    search = (
+        request.args.get('search')
+        or None
+    )
+
+    attempts = get_all_login_attempts(
+        start_date,
+        end_date,
+        risk_level,
+        search
+    )
 
     return render_template(
         'login_attempts.html',
-        attempts=attempts
+        attempts=attempts,
+        start_date=start_date or '',
+        end_date=end_date or '',
+        risk_level=risk_level or '',
+        search=search or ''
     )
 
 
@@ -1788,6 +2096,354 @@ def rejection_log():
     return render_template(
         'rejection_log.html',
         log=log
+    )
+
+
+# =====================================================
+# SUPER ADMIN — DATA BACKUP
+# =====================================================
+
+@app.route(
+    '/admin/backup',
+    methods=['GET', 'POST']
+)
+@super_admin_required
+def data_backup():
+    message = None
+
+    if request.method == 'POST':
+        try:
+            timestamp = datetime.now().strftime(
+                '%Y%m%d_%H%M%S'
+            )
+
+            dump_filename = f"backup_{timestamp}.sql"
+
+            dump_path = os.path.join(
+                BACKUP_FOLDER,
+                dump_filename
+            )
+
+            with open(dump_path, 'wb') as dump_file:
+                result = subprocess.run(
+                    [
+                        MYSQLDUMP_PATH,
+                        '-h', DB_BACKUP_HOST,
+                        '-u', DB_BACKUP_USER,
+                        f'-p{DB_BACKUP_PASSWORD}',
+                        DB_BACKUP_NAME
+                    ],
+                    stdout=dump_file,
+                    stderr=subprocess.PIPE
+                )
+
+            if result.returncode != 0:
+                if os.path.exists(dump_path):
+                    os.remove(dump_path)
+
+                message = (
+                    "Backup failed: "
+                    + result.stderr.decode(errors='replace')
+                )
+
+            else:
+                # ---- Encrypt the dump, then delete the ----
+                # ---- plaintext copy — it must never sit  ----
+                # ---- on disk unencrypted.                ----
+                key = get_or_create_backup_key()
+
+                fernet = Fernet(key)
+
+                with open(dump_path, 'rb') as f:
+                    raw_data = f.read()
+
+                encrypted_data = fernet.encrypt(
+                    raw_data
+                )
+
+                encrypted_filename = (
+                    dump_filename + '.enc'
+                )
+
+                encrypted_path = os.path.join(
+                    BACKUP_FOLDER,
+                    encrypted_filename
+                )
+
+                with open(encrypted_path, 'wb') as f:
+                    f.write(encrypted_data)
+
+                os.remove(dump_path)
+
+                message = (
+                    "Backup created and encrypted "
+                    f"successfully: {encrypted_filename}"
+                )
+
+        except FileNotFoundError:
+            message = (
+                "mysqldump was not found. Make sure MySQL's "
+                "command-line tools are installed and either "
+                "on your system PATH, or update MYSQLDUMP_PATH "
+                "in app.py to the full path of mysqldump.exe."
+            )
+
+        except Exception as e:
+            message = f"Backup failed: {str(e)}"
+
+    backups = []
+
+    if os.path.exists(BACKUP_FOLDER):
+        for filename in sorted(
+            os.listdir(BACKUP_FOLDER),
+            reverse=True
+        ):
+            if filename.endswith('.enc'):
+                full_path = os.path.join(
+                    BACKUP_FOLDER,
+                    filename
+                )
+
+                size_kb = round(
+                    os.path.getsize(full_path) / 1024,
+                    1
+                )
+
+                backups.append({
+                    'name': filename,
+                    'size_kb': size_kb
+                })
+
+    return render_template(
+        'data_backup.html',
+        message=message,
+        backups=backups
+    )
+
+
+@app.route(
+    '/admin/backup/download/<path:filename>'
+)
+@super_admin_required
+def download_backup(filename):
+    safe_filename = secure_filename(
+        filename
+    )
+
+    full_path = os.path.join(
+        BACKUP_FOLDER,
+        safe_filename
+    )
+
+    if not os.path.exists(full_path):
+        return (
+            "Backup file not found. "
+            "<a href='/admin/backup'>Back</a>"
+        )
+
+    return send_from_directory(
+        BACKUP_FOLDER,
+        safe_filename,
+        as_attachment=True
+    )
+
+
+# =====================================================
+# SUPER ADMIN — DATA RESTORE
+# =====================================================
+
+@app.route(
+    '/admin/restore',
+    methods=['GET', 'POST']
+)
+@super_admin_required
+def data_restore():
+    message = None
+
+    if request.method == 'POST':
+        confirm = request.form.get(
+            'confirm'
+        )
+
+        if confirm != 'yes':
+            message = (
+                "You must confirm before restoring — "
+                "this will overwrite all current data."
+            )
+
+        else:
+            source = request.form.get(
+                'source'
+            )
+
+            encrypted_bytes = None
+
+            try:
+                # ---- Get the encrypted backup bytes,   ----
+                # ---- either from an existing backup or ----
+                # ---- a freshly uploaded .enc file.      ----
+                if source == 'existing':
+                    filename = secure_filename(
+                        request.form.get(
+                            'backup_filename',
+                            ''
+                        )
+                    )
+
+                    full_path = os.path.join(
+                        BACKUP_FOLDER,
+                        filename
+                    )
+
+                    if not os.path.exists(full_path):
+                        message = (
+                            "Selected backup file not found."
+                        )
+
+                    else:
+                        with open(full_path, 'rb') as f:
+                            encrypted_bytes = f.read()
+
+                else:
+                    file = request.files.get(
+                        'backup_file'
+                    )
+
+                    if not file or not file.filename.endswith('.enc'):
+                        message = (
+                            "Please upload a valid encrypted "
+                            "(.enc) backup file."
+                        )
+
+                    else:
+                        encrypted_bytes = file.read()
+
+                # ---- Decrypt + validate + restore ----
+                if encrypted_bytes and not message:
+
+                    key = get_or_create_backup_key()
+
+                    fernet = Fernet(key)
+
+                    try:
+                        decrypted_data = fernet.decrypt(
+                            encrypted_bytes
+                        )
+
+                    except InvalidToken:
+                        message = (
+                            "Backup file could not be "
+                            "decrypted — wrong key, or the "
+                            "file is corrupted/tampered."
+                        )
+
+                    else:
+                        # ---- Basic integrity check: does this ----
+                        # ---- actually look like a SQL dump?    ----
+                        preview = decrypted_data[:300].decode(
+                            errors='ignore'
+                        ).lower()
+
+                        looks_like_sql = (
+                            'create table' in preview
+                            or 'insert into' in preview
+                            or 'mysql dump' in preview
+                        )
+
+                        if not looks_like_sql:
+                            message = (
+                                "This file does not look like a "
+                                "valid SQL dump. Restore aborted "
+                                "for safety."
+                            )
+
+                        else:
+                            temp_sql_path = os.path.join(
+                                BACKUP_FOLDER,
+                                "_restore_temp_"
+                                + datetime.now().strftime(
+                                    '%Y%m%d_%H%M%S'
+                                )
+                                + ".sql"
+                            )
+
+                            with open(temp_sql_path, 'wb') as f:
+                                f.write(decrypted_data)
+
+                            try:
+                                with open(
+                                    temp_sql_path,
+                                    'rb'
+                                ) as sql_file:
+
+                                    result = subprocess.run(
+                                        [
+                                            MYSQL_PATH,
+                                            '-h', DB_BACKUP_HOST,
+                                            '-u', DB_BACKUP_USER,
+                                            f'-p{DB_BACKUP_PASSWORD}',
+                                            DB_BACKUP_NAME
+                                        ],
+                                        stdin=sql_file,
+                                        stderr=subprocess.PIPE
+                                    )
+
+                                if result.returncode != 0:
+                                    message = (
+                                        "Restore failed: "
+                                        + result.stderr.decode(
+                                            errors='replace'
+                                        )
+                                    )
+
+                                else:
+                                    message = (
+                                        "Database restored "
+                                        "successfully."
+                                    )
+
+                            finally:
+                                # ---- Never leave a plaintext ----
+                                # ---- SQL dump on disk.        ----
+                                if os.path.exists(temp_sql_path):
+                                    os.remove(temp_sql_path)
+
+            except FileNotFoundError:
+                message = (
+                    "mysql client not found. Check "
+                    "MYSQL_PATH in app.py."
+                )
+
+            except Exception as e:
+                message = f"Restore failed: {str(e)}"
+
+    backups = []
+
+    if os.path.exists(BACKUP_FOLDER):
+        for filename in sorted(
+            os.listdir(BACKUP_FOLDER),
+            reverse=True
+        ):
+            if filename.endswith('.enc'):
+                full_path = os.path.join(
+                    BACKUP_FOLDER,
+                    filename
+                )
+
+                size_kb = round(
+                    os.path.getsize(full_path) / 1024,
+                    1
+                )
+
+                backups.append({
+                    'name': filename,
+                    'size_kb': size_kb
+                })
+
+    return render_template(
+        'data_restore.html',
+        message=message,
+        backups=backups
     )
 
 

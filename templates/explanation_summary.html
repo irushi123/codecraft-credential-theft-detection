@@ -10,18 +10,22 @@
             <div class="brand">Code<span>Craft</span> Admin</div>
             <nav>
                 <a href="/admin">Dashboard</a>
+                <a href="/admin/monitoring">System Monitoring</a>
                 <a href="/admin/login-attempts">Login Attempts</a>
                 <a href="/admin/risk-scores">Risk Scores</a>
                 <a href="/admin/alerts">Security Alerts</a>
                 <a href="/admin/explanations" class="active">Explanation Summary</a>
-                 <a href="/admin/users">Manage Users</a>
+                <a href="/admin/users">Manage Users</a>
                 <a href="/admin/audit-log">Audit Log</a>
                 <a href="/change-password">Change Password</a>
                 <a href="/admin/export-form">Export Data</a>
                 <a href="/admin/reports">Generate Reports</a>
                 {% if session.is_super_admin %}
-<a href="/admin/pending-admins">Pending Admins</a>
-{% endif %}
+                <a href="/admin/pending-admins">Pending Admins</a>
+                <a href="/admin/backup">Data Backup</a>
+                <a href="/admin/restore">Data Restore</a>
+                {% endif %}
+                <a href="/help">Help &amp; Support</a>
                 <a href="/logout">Logout</a>
             </nav>
         </div>

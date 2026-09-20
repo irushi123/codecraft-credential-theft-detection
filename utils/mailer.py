@@ -2,30 +2,28 @@ import smtplib
 import random
 from email.mime.text import MIMEText
 
-# ⚠️ DEMO CONFIG — replace with real SMTP credentials for production use.
-# Leave blank to run in "console mode": OTP prints to terminal + is shown
-# to the Super Admin on screen, so the flow can be demoed without a live inbox.
-SENDER_EMAIL = ""       # e.g. "codecraft.security@gmail.com"
-SENDER_PASSWORD = ""    # e.g. Gmail App Password (not your normal password)
+# ✅ REAL SMTP CONFIGURATION
+SENDER_EMAIL = "codecraft678@gmail.com"        
+SENDER_PASSWORD = "ivkg ycxp txzd jiwv"      
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
 
 def generate_otp():
+    """Generate a 6-digit OTP."""
     return str(random.randint(100000, 999999))
 
 
 def send_otp_email(to_email, name, otp_code):
     """
-    Sends the OTP to the pending admin's university email.
+    Sends the OTP to the user's email.
     Returns (success: bool, mode: str) — mode is 'sent' or 'console'.
     """
-    subject = "CodeCraft Admin Verification Code"
+    subject = "CodeCraft Verification Code"
     body = (
         f"Hello {name},\n\n"
-        f"A Super Admin is verifying your CodeCraft admin account request.\n"
-        f"Your one-time verification code is: {otp_code}\n\n"
-        f"This code expires in 10 minutes. If you did not request admin access, "
+        f"Your CodeCraft verification code is: {otp_code}\n\n"
+        f"This code expires in 10 minutes. If you did not request this, "
         f"please ignore this email.\n\n"
         f"— CodeCraft Security Team"
     )
