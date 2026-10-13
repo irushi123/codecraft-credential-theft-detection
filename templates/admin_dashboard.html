@@ -1,69 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Admin Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        
+        document.addEventListener('DOMContentLoaded', function () {
+            document.body.setAttribute('data-theme', localStorage.getItem('cc-theme') || 'light');
+        });
+    </script>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+    {% set total = stats.total_attempts or 0 %}
+    {% set risk_pct = ((stats.high_risk / total) * 100) if total > 0 else 0 %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
+            </div>
+
             <nav>
-                <a href="/admin" class="active">Dashboard</a>
-                <a href="/admin/monitoring">System Monitoring</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/settings">System Settings</a>
-                <a href="/admin/import">Import Data</a>               
-                <a href="/admin/reports">Generate Reports</a>
+                <div class="nav-group">Overview</div>
+                <a href="/admin" class="active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
                 {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-               {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-                
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
             </nav>
-        </div>
 
-        <div class="main-content">
-            <h2>Admin Dashboard</h2>
-            <p class="subtitle">Credential Theft Detection System</p>
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
 
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">Total Login Attempts</div>
-                    <div class="value">{{ stats.total_attempts }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">High Risk Events</div>
-                    <div class="value risk-high">{{ stats.high_risk }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Active Users</div>
-                    <div class="value risk-low">{{ stats.active_users }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Security Alerts</div>
-                    <div class="value {% if stats.total_alerts > 0 %}risk-high{% else %}risk-low{% endif %}">
-                        {{ stats.total_alerts }}
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts">
+                    <i data-lucide="bell"></i>
+                    {% if stats.total_alerts > 0 %}<span class="dot"></span>{% endif %}
+                </a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            <div class="content-card">
-                <h3>Security Alerts</h3>
-                <p style="color:#9aa4b8; margin-bottom:16px;">Review flagged login attempts and take action.</p>
-                <a href="/admin/alerts" class="btn btn-danger">Review Suspicious</a>
-            </div>
+            <main class="main-content">
+                <h2><span data-greeting>Welcome</span>, Admin</h2>
+                <p class="subtitle">Credential Theft Detection System &mdash; overview of today's activity</p>
+
+                <div class="widget-row">
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Total Login Attempts</div><i data-lucide="log-in"></i></div>
+                        <div class="value" data-count="{{ stats.total_attempts }}">{{ stats.total_attempts }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">High Risk Events</div><i data-lucide="shield-alert"></i></div>
+                        <div class="value risk-high" data-count="{{ stats.high_risk }}">{{ stats.high_risk }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Active Users</div><i data-lucide="users"></i></div>
+                        <div class="value risk-low" data-count="{{ stats.active_users }}">{{ stats.active_users }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Security Alerts</div><i data-lucide="bell-ring"></i></div>
+                        <div class="value {% if stats.total_alerts > 0 %}risk-high{% else %}risk-low{% endif %}"
+                             data-count="{{ stats.total_alerts }}">{{ stats.total_alerts }}</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="content-card">
+                        <h3>Security Alerts</h3>
+                        <p class="desc">Review flagged login attempts and take action.</p>
+                        <a href="/admin/alerts" class="btn btn-primary"><i data-lucide="shield-alert"></i>Review Suspicious</a>
+                        <a href="/admin/login-attempts" class="btn btn-outline">View Login Attempts</a>
+
+                        <div style="margin-top:28px">
+                            <h3>High Risk Rate</h3>
+                            <div class="big-number">{{ '%.1f' | format(risk_pct) }}%</div>
+                            <div class="progress danger"><div data-percent="{{ risk_pct }}"></div></div>
+                            <div class="progress-meta">
+                                <span>{{ stats.high_risk }} high risk</span>
+                                <span>{{ stats.total_attempts }} total attempts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="content-card">
+                        <h3>Quick Actions</h3>
+                        <p class="desc">Jump to the pages you use most.</p>
+                        <div class="quick-links">
+                            <a href="/admin/users"><i data-lucide="users"></i>Manage Users</a>
+                            <a href="/admin/risk-scores"><i data-lucide="gauge"></i>Risk Scores</a>
+                            <a href="/admin/audit-log"><i data-lucide="scroll-text"></i>Audit Log</a>
+                            <a href="/admin/reports"><i data-lucide="bar-chart-3"></i>Generate Reports</a>
+                            <a href="/admin/export-form"><i data-lucide="download"></i>Export Data</a>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

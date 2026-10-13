@@ -1,53 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Feedback</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+       
+        .dash .fb-grid { display: grid; grid-template-columns: minmax(300px, 420px) 1fr; gap: 16px; align-items: start; }
+
+        .dash .fb-form { margin: 0; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+        .dash .fb-form h3 { margin: 0; font-size: 15px; }
+        .dash .fb-form .hint { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+        .dash .fb-form textarea {
+            width: 100%; min-height: 140px; padding: 12px 14px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            font: inherit; font-size: 14px; line-height: 1.6; resize: vertical;
+        }
+        .dash .fb-form textarea::placeholder { color: var(--muted); }
+        .dash .fb-form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+        .dash .fb-form .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .dash .fb-form .counter { font-size: 12px; color: var(--muted); }
+        .dash .fb-form .btn { margin: 0; height: 40px; padding: 0 18px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .dash .fb-form .btn svg { width: 16px; height: 16px; }
+        .dash .fb-form .message { margin: 0; }
+
+        .dash .fb-history { margin: 0; padding: 20px; }
+        .dash .fb-history .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .dash .fb-history h3 { margin: 0; font-size: 15px; }
+        .dash .fb-history .total { font-size: 12px; color: var(--muted); }
+
+        .dash .fb-list { display: flex; flex-direction: column; gap: 10px; }
+        .dash .fb-item { padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--hover); }
+        .dash .fb-item p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--text); white-space: pre-line; word-break: break-word; }
+        .dash .fb-item .when { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+        .dash .fb-item .when svg { width: 13px; height: 13px; }
+
+        .dash .fb-empty { text-align: center; padding: 28px 0; color: var(--muted); font-size: 14px; }
+
+        @media (max-width: 900px) { .dash .fb-grid { grid-template-columns: 1fr; } }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set user_email = session.get('email') or 'User' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span></div>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span></div>
+            </div>
+
             <nav>
-                <a href="/dashboard">Dashboard</a>
-                <a href="/profile">My Profile</a>
-                <a href="/login-history">Login History</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/feedback" class="active">Feedback</a>
-                <a href="/notifications">Notifications</a>
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
+                <div class="nav-group">Overview</div>
+                <a href="/dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+
+                <div class="nav-group">Account</div>
+                <a href="/profile"><i data-lucide="user"></i><span>My Profile</span></a>
+                <a href="/login-history"><i data-lucide="history"></i><span>Login History</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+
+                <div class="nav-group">Support</div>
+                <a href="/feedback" class="active"><i data-lucide="message-square"></i><span>Feedback</span></a>
+                <a href="/notifications"><i data-lucide="bell"></i><span>Notifications</span></a>
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
             </nav>
-        </div>
 
-        <div class="main-content">
-            <h2>Feedback</h2>
-            <p class="subtitle">Share your thoughts or report an issue with the system</p>
-
-            <div class="content-card" style="max-width:520px;">
-                <form method="POST">
-                    <textarea name="feedback_text" rows="5" placeholder="Type your feedback here..." required
-                        style="width:100%; padding:12px 14px; margin-bottom:14px; border:1px solid #4a4f5e; border-radius:6px; background:#2b2f3a; color:#fff; font-family:inherit; resize:vertical;"></textarea>
-                    <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">Submit Feedback</button>
-                </form>
-                {% if message %}
-                    <div class="message">{{ message }}</div>
-                {% endif %}
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ user_email }}">U</div>
+                <div class="who">
+                    <strong>My Account</strong>
+                    <small>{{ user_email }}</small>
+                </div>
             </div>
+        </aside>
+        <div class="overlay"></div>
 
-            <div class="content-card">
-                <h3>My Previous Feedback</h3>
-                {% for row in history %}
-                    <div class="list-item">
-                        <p>{{ row.Feedback_text }}</p>
-                        <p style="font-size:12px; color:#9aa4b8; margin-top:6px;">Submitted: {{ row.Submitted_at }}</p>
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/notifications" class="icon-btn" aria-label="Notifications"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ user_email }}" aria-label="Profile">U</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/profile"><i data-lucide="user"></i>My Profile</a>
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
                     </div>
-                {% endfor %}
-                {% if not history %}
-                    <p style="color:#9aa4b8;">No feedback submitted yet.</p>
-                {% endif %}
-            </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Feedback</h2>
+                <p class="subtitle">Share your thoughts or report an issue with the system</p>
+
+                <div class="fb-grid">
+                    <!-- Form -->
+                    <div class="content-card fb-form">
+                        <h3>New feedback</h3>
+                        <p class="hint">Tell us what's working, what's confusing, or what went wrong.</p>
+
+                        <form method="POST" style="display:flex; flex-direction:column; gap:12px; margin:0;">
+                            <textarea id="fbText" name="feedback_text" maxlength="1000" placeholder="Type your feedback here..." required></textarea>
+                            <div class="row">
+                                <span class="counter" id="fbCount">0 / 1000</span>
+                                <button type="submit" class="btn btn-primary">
+                                    <i data-lucide="send"></i>Submit Feedback
+                                </button>
+                            </div>
+                        </form>
+
+                        {% if message %}
+                            <div class="message">{{ message }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- History -->
+                    <div class="content-card fb-history">
+                        <div class="head">
+                            <h3>My Previous Feedback</h3>
+                            {% if history %}<span class="total">{{ history|length }} submitted</span>{% endif %}
+                        </div>
+
+                        {% if history %}
+                        <div class="fb-list">
+                            {% for row in history %}
+                            <div class="fb-item">
+                                <p>{{ row.Feedback_text }}</p>
+                                <div class="when"><i data-lucide="clock"></i>Submitted {{ row.Submitted_at }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="fb-empty">No feedback submitted yet. Your submissions will appear here.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+        (function () {
+            var t = document.getElementById('fbText');
+            var c = document.getElementById('fbCount');
+            if (!t || !c) return;
+            function upd() { c.textContent = t.value.length + ' / ' + t.maxLength; }
+            t.addEventListener('input', upd);
+            upd();
+        })();
+    </script>
 </body>
 </html>

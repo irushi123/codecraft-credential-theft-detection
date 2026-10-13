@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ code }} - CodeCraft</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6f9;
+            color: #2c3e50;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .error-card {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 48px 40px;
+            max-width: 440px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .error-code {
+            font-size: 64px;
+            font-weight: 700;
+            color: {{ '#c0392b' if code == 500 else '#2980b9' }};
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .error-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 12px;
+        }
+
+        .error-message {
+            font-size: 14px;
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .error-actions a {
+            display: inline-block;
+            padding: 10px 24px;
+            background: #2980b9;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .error-actions a:hover {
+            background: #1f618d;
+        }
+
+        .error-icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-card">
+        <div class="error-icon">{{ '⚠️' if code == 500 else '🔍' }}</div>
+        <div class="error-code">{{ code }}</div>
+        <div class="error-title">
+            {{ 'Internal Server Error' if code == 500 else 'Page Not Found' }}
+        </div>
+        <div class="error-message">
+            {{ message }}
+        </div>
+        <div class="error-actions">
+            <a href="/">Back to Home</a>
+        </div>
+    </div>
+</body>
+</html>

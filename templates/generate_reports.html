@@ -1,131 +1,265 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Generate Reports</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+       
+        .dash .rep-card { margin: 0 0 20px; padding: 24px; max-width: 560px; }
+        .dash .rep-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+        .dash .rep-head .ico {
+            width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+            background: var(--hover); color: var(--accent); flex: none;
+        }
+        .dash .rep-head .ico svg { width: 18px; height: 18px; }
+        .dash .rep-head h3 { margin: 0; font-size: 16px; }
+
+        .dash .rep-form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+        .dash .field { display: flex; flex-direction: column; gap: 6px; }
+        .dash .field label { font-size: 13px; font-weight: 600; color: var(--text); }
+        .dash .field input,
+        .dash .field select {
+            width: 100%; height: 42px; padding: 0 12px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            font: inherit; font-size: 14px;
+        }
+        .dash .field input:focus,
+        .dash .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+        .dash .rep-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
+        .dash .rep-actions .btn { margin: 0; height: 42px; padding: 0 22px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .dash .rep-actions .btn svg { width: 16px; height: 16px; }
+
+        .dash .stat-grid {
+            display: grid; gap: 16px; margin: 0 0 20px;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        }
+        .dash .stat-card { margin: 0; padding: 18px 20px; }
+        .dash .stat-card .label { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+        .dash .stat-card .value { font-size: 26px; font-weight: 700; color: var(--text); }
+
+        .dash .table-wrap { overflow-x: auto; }
+        .dash .rep-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+        .dash .rep-table th {
+            text-align: left; padding: 10px 12px; font-weight: 600; color: var(--muted);
+            border-bottom: 1px solid var(--border); white-space: nowrap;
+        }
+        .dash .rep-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+        .dash .rep-table tr:hover td { background: var(--hover); }
+        .dash .empty-note { margin: 16px 0 0; color: var(--muted); font-size: 14px; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand"><span class="logo-mark">⬡</span>CodeCraft</div>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
+            </div>
+
             <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/monitoring">System Monitoring</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/reports" class="active">Generate Reports</a>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports" class="active"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
                 {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/rejection-log"><i data-lucide="user-x"></i><span>Rejection Log</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
                 {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
             </nav>
-        </div>
 
-        <div class="main-content">
-            <h2>Generate Reports</h2>
-            <p class="subtitle">Analytical summary of login and risk data</p>
-
-            <div class="content-card" style="max-width:600px;">
-                <form method="GET" action="/admin/reports">
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Start Date</label>
-                    <input type="date" name="start_date" value="{{ start_date or '' }}" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">End Date</label>
-                    <input type="date" name="end_date" value="{{ end_date or '' }}" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Risk Level</label>
-                    <select name="risk_level" style="width:100%; padding:10px; margin-bottom:20px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-                        <option value="" {% if not risk_level %}selected{% endif %}>All</option>
-                        <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
-                        <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
-                        <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
-                    </select>
-
-                    <input type="hidden" name="generated" value="1">
-                    <button type="submit" class="btn btn-primary" style="width:100%;">Generate Report</button>
-                </form>
-            </div>
-
-            {% if report %}
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">Total Logins</div>
-                    <div class="value">{{ report.summary.total_logins or 0 }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Successful</div>
-                    <div class="value risk-low">{{ report.summary.successful_logins or 0 }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Failed</div>
-                    <div class="value risk-high">{{ report.summary.failed_logins or 0 }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Avg Risk Score</div>
-                    <div class="value">{{ report.summary.avg_risk_score or 0 }}%</div>
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
                 </div>
             </div>
+        </aside>
+        <div class="overlay"></div>
 
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">High Risk Events</div>
-                    <div class="value risk-high">{{ report.summary.high_risk_count or 0 }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Medium Risk Events</div>
-                    <div class="value risk-medium">{{ report.summary.medium_risk_count or 0 }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Low Risk Events</div>
-                    <div class="value risk-low">{{ report.summary.low_risk_count or 0 }}</div>
-                </div>
-            </div>
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
 
-            <div class="content-card">
-                <h3>Detailed Records</h3>
-                <table>
-                    <tr>
-                        <th>Login ID</th><th>Email</th><th>Time</th><th>IP</th>
-                        <th>Status</th><th>Risk Score</th><th>Risk Level</th>
-                    </tr>
-                    {% for row in report.rows %}
-                    <tr>
-                        <td>{{ row.Login_ID }}</td>
-                        <td>{{ row.Email }}</td>
-                        <td>{{ row.Login_time }}</td>
-                        <td>{{ row.IP_address }}</td>
-                        <td class="{% if row.Login_status == 'Success' %}status-success{% else %}status-failed{% endif %}">
-                            {{ row.Login_status }}
-                        </td>
-                        <td>{{ row.Risk_score if row.Risk_score is not none else '-' }}</td>
-                        <td>
-                            {% if row.Risk_level == 'High' %}
-                                <span class="risk-high">{{ row.Risk_level }}</span>
-                            {% elif row.Risk_level == 'Medium' %}
-                                <span class="risk-medium">{{ row.Risk_level }}</span>
-                            {% elif row.Risk_level == 'Low' %}
-                                <span class="risk-low">{{ row.Risk_level }}</span>
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                {% if not report.rows %}
-                    <p style="color:#9aa4b8;">No records found for the selected filters.</p>
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Generate Reports</h2>
+                <p class="subtitle">Analytical summary of login and risk data</p>
+
+                <!-- Filter form -->
+                <div class="content-card rep-card">
+                    <div class="rep-head">
+                        <div class="ico"><i data-lucide="filter"></i></div>
+                        <h3>Report filters</h3>
+                    </div>
+
+                    <form method="GET" action="/admin/reports" class="rep-form">
+                        <div class="field">
+                            <label for="start_date">Start Date</label>
+                            <input id="start_date" type="date" name="start_date" value="{{ start_date or '' }}">
+                        </div>
+
+                        <div class="field">
+                            <label for="end_date">End Date</label>
+                            <input id="end_date" type="date" name="end_date" value="{{ end_date or '' }}">
+                        </div>
+
+                        <div class="field">
+                            <label for="risk_level">Risk Level</label>
+                            <select id="risk_level" name="risk_level">
+                                <option value="" {% if not risk_level %}selected{% endif %}>All</option>
+                                <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
+                                <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
+                                <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
+                            </select>
+                        </div>
+
+                        <input type="hidden" name="generated" value="1">
+                        <div class="rep-actions">
+                            <button type="submit" class="btn btn-primary"><i data-lucide="bar-chart-3"></i>Generate Report</button>
+                        </div>
+                    </form>
+                </div>
+
+                {% if report %}
+                <!-- Summary cards -->
+                <div class="stat-grid">
+                    <div class="content-card stat-card">
+                        <div class="label">Total Logins</div>
+                        <div class="value">{{ report.summary.total_logins or 0 }}</div>
+                    </div>
+                    <div class="content-card stat-card">
+                        <div class="label">Successful</div>
+                        <div class="value risk-low">{{ report.summary.successful_logins or 0 }}</div>
+                    </div>
+                    <div class="content-card stat-card">
+                        <div class="label">Failed</div>
+                        <div class="value risk-high">{{ report.summary.failed_logins or 0 }}</div>
+                    </div>
+                    <div class="content-card stat-card">
+                        <div class="label">Avg Risk Score</div>
+                        <div class="value">{{ report.summary.avg_risk_score or 0 }}%</div>
+                    </div>
+                </div>
+
+                <div class="stat-grid">
+                    <div class="content-card stat-card">
+                        <div class="label">High Risk Events</div>
+                        <div class="value risk-high">{{ report.summary.high_risk_count or 0 }}</div>
+                    </div>
+                    <div class="content-card stat-card">
+                        <div class="label">Medium Risk Events</div>
+                        <div class="value risk-medium">{{ report.summary.medium_risk_count or 0 }}</div>
+                    </div>
+                    <div class="content-card stat-card">
+                        <div class="label">Low Risk Events</div>
+                        <div class="value risk-low">{{ report.summary.low_risk_count or 0 }}</div>
+                    </div>
+                </div>
+
+                <!-- Detailed records -->
+                <div class="content-card" style="padding:24px;">
+                    <div class="rep-head">
+                        <div class="ico"><i data-lucide="table"></i></div>
+                        <h3>Detailed Records</h3>
+                    </div>
+
+                    <div class="table-wrap">
+                        <table class="rep-table">
+                            <thead>
+                                <tr>
+                                    <th>Login ID</th><th>Email</th><th>Time</th><th>IP</th>
+                                    <th>Status</th><th>Risk Score</th><th>Risk Level</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in report.rows %}
+                                <tr>
+                                    <td>{{ row.Login_ID }}</td>
+                                    <td>{{ row.Email }}</td>
+                                    <td>{{ row.Login_time }}</td>
+                                    <td>{{ row.IP_address }}</td>
+                                    <td class="{% if row.Login_status == 'Success' %}status-success{% else %}status-failed{% endif %}">
+                                        {{ row.Login_status }}
+                                    </td>
+                                    <td>{{ row.Risk_score if row.Risk_score is not none else '-' }}</td>
+                                    <td>
+                                        {% if row.Risk_level == 'High' %}
+                                            <span class="risk-high">{{ row.Risk_level }}</span>
+                                        {% elif row.Risk_level == 'Medium' %}
+                                            <span class="risk-medium">{{ row.Risk_level }}</span>
+                                        {% elif row.Risk_level == 'Low' %}
+                                            <span class="risk-low">{{ row.Risk_level }}</span>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if not report.rows %}
+                    <p class="empty-note">No records found for the selected filters.</p>
+                    {% endif %}
+                </div>
                 {% endif %}
-            </div>
-            {% endif %}
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

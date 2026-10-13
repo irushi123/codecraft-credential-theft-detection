@@ -1,101 +1,231 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Login Attempts</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        
+        .dash .filter-card { margin: 0 0 16px; padding: 16px 20px; }
+        .dash .filter-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin: 0; }
+        .dash .field { display: flex; flex-direction: column; gap: 4px; }
+        .dash .field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+        .dash .field input,
+        .dash .field select {
+            height: 38px; padding: 0 12px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            font: inherit; font-size: 13px;
+        }
+        .dash .field input:focus,
+        .dash .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+        .dash .field.grow { flex: 1 1 240px; }
+        .dash .field.grow input { width: 100%; }
+        .dash .filter-actions { display: flex; gap: 8px; }
+        .dash .filter-actions .btn { margin: 0; height: 38px; padding: 0 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+        .dash .filter-actions .btn svg { width: 14px; height: 14px; }
+
+        .dash .result-bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+
+        .dash .la-card { margin: 0; padding: 0; overflow: hidden; }
+        .dash .la-scroll { overflow-x: auto; }
+        .dash .la-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+        .dash .la-table th {
+            text-align: left; padding: 12px 20px; font-size: 12px; font-weight: 600;
+            color: var(--muted); border-bottom: 1px solid var(--border);
+        }
+        .dash .la-table td { padding: 13px 20px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+        .dash .la-table tr:last-child td { border-bottom: 0; }
+        .dash .la-table tbody tr:hover { background: var(--hover); }
+
+        .dash .person { display: flex; align-items: center; gap: 12px; }
+        .dash .person .avatar { width: 34px; height: 34px; font-size: 12px; flex: none; }
+        .dash .person span { word-break: break-all; }
+        .dash .muted { color: var(--muted); }
+        .dash .num { font-variant-numeric: tabular-nums; }
+
+        .dash .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .dash .pill.success { background: var(--success-bg); color: var(--success); }
+        .dash .pill.failed  { background: var(--danger-bg);  color: var(--danger); }
+        .dash .pill.high    { background: var(--danger-bg);  color: var(--danger); }
+        .dash .pill.medium  { background: var(--warn-bg);    color: var(--warn); }
+        .dash .pill.low     { background: var(--success-bg); color: var(--success); }
+
+        .dash .empty { text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
-            <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/monitoring">System Monitoring</a>
-                <a href="/admin/login-attempts" class="active">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/settings">System Settings</a>
-                <a href="/admin/import">Import Data</a>
-                <a href="/admin/reports">Generate Reports</a>
-                {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-                {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>Login Attempts</h2>
-            <p class="subtitle">System-wide log of every login attempt</p>
-
-            <div class="content-card">
-                <form method="GET" action="/admin/login-attempts" style="display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:16px;">
-                    <div>
-                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">From</label>
-                        <input type="date" name="start_date" value="{{ start_date }}"
-                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">To</label>
-                        <input type="date" name="end_date" value="{{ end_date }}"
-                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">Risk Level</label>
-                        <select name="risk_level"
-                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px;">
-                            <option value="" {% if not risk_level %}selected{% endif %}>All</option>
-                            <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
-                            <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
-                            <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="display:block; font-size:12px; color:#9aa4b8; margin-bottom:4px;">Email / IP contains</label>
-                        <input type="text" name="search" value="{{ search }}" placeholder="e.g. student@as.rjt.ac.lk or 192.168"
-                            style="padding:8px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0; font-size:13px; width:220px;">
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-primary">Apply Filters</button>
-                        <a href="/admin/login-attempts" class="btn btn-danger" style="text-decoration:none; display:inline-block;">Clear</a>
-                    </div>
-                </form>
-
-                <table>
-                    <tr>
-                        <th>User</th><th>Date</th><th>IP Address</th><th>Status</th><th>Risk Score</th>
-                    </tr>
-                    {% for row in attempts %}
-                    <tr>
-                        <td>{{ row.Email }}</td>
-                        <td>{{ row.Login_time }}</td>
-                        <td>{{ row.IP_address }}</td>
-                        <td>
-                            {% if row.Login_status == 'Success' %}<span class="status-success">Success</span>
-                            {% else %}<span class="status-failed">Failed</span>{% endif %}
-                        </td>
-                        <td>
-                            {% if row.Risk_level == 'High' %}<span class="risk-high">{{ row.Risk_score }}%</span>
-                            {% elif row.Risk_level == 'Medium' %}<span class="risk-medium">{{ row.Risk_score }}%</span>
-                            {% elif row.Risk_level == 'Low' %}<span class="risk-low">{{ row.Risk_score }}%</span>
-                            {% else %}-{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                {% if not attempts %}
-                    <p style="color:#9aa4b8; margin-top:12px;">No login attempts match the current filters.</p>
-                {% endif %}
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
             </div>
+
+            <nav>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts" class="active"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/rejection-log"><i data-lucide="user-x"></i><span>Rejection Log</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Login Attempts</h2>
+                <p class="subtitle">System-wide log of every login attempt</p>
+
+                <!-- Filters (server-side, GET) -->
+                <div class="content-card filter-card">
+                    <form method="GET" action="/admin/login-attempts" class="filter-form">
+                        <div class="field">
+                            <label for="start_date">From</label>
+                            <input id="start_date" type="date" name="start_date" value="{{ start_date }}">
+                        </div>
+                        <div class="field">
+                            <label for="end_date">To</label>
+                            <input id="end_date" type="date" name="end_date" value="{{ end_date }}">
+                        </div>
+                        <div class="field">
+                            <label for="risk_level">Risk level</label>
+                            <select id="risk_level" name="risk_level">
+                                <option value="" {% if not risk_level %}selected{% endif %}>All</option>
+                                <option value="Low" {% if risk_level == 'Low' %}selected{% endif %}>Low</option>
+                                <option value="Medium" {% if risk_level == 'Medium' %}selected{% endif %}>Medium</option>
+                                <option value="High" {% if risk_level == 'High' %}selected{% endif %}>High</option>
+                            </select>
+                        </div>
+                        <div class="field grow">
+                            <label for="search">Email or IP contains</label>
+                            <input id="search" type="text" name="search" value="{{ search }}" placeholder="e.g. student@as.rjt.ac.lk or 192.168">
+                        </div>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary"><i data-lucide="filter"></i>Apply filters</button>
+                            <a href="/admin/login-attempts" class="btn btn-outline"><i data-lucide="x"></i>Clear</a>
+                        </div>
+                    </form>
+                </div>
+
+                {% if attempts %}
+                <div class="result-bar">
+                    <span>{{ attempts|length }} login attempt{{ '' if attempts|length == 1 else 's' }}</span>
+                </div>
+
+                <div class="content-card la-card">
+                    <div class="la-scroll">
+                        <table class="la-table">
+                            <thead>
+                                <tr><th>User</th><th>Date</th><th>IP address</th><th>Status</th><th>Risk score</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for row in attempts %}
+                                <tr>
+                                    <td>
+                                        <div class="person">
+                                            <div class="avatar" data-initials="{{ row.Email }}">S</div>
+                                            <span>{{ row.Email }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="muted num">{{ row.Login_time }}</td>
+                                    <td class="num">{{ row.IP_address }}</td>
+                                    <td>
+                                        {% if row.Login_status == 'Success' %}
+                                            <span class="pill success">Success</span>
+                                        {% else %}
+                                            <span class="pill failed">Failed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.Risk_level == 'High' %}
+                                            <span class="pill high">{{ row.Risk_score }}%</span>
+                                        {% elif row.Risk_level == 'Medium' %}
+                                            <span class="pill medium">{{ row.Risk_score }}%</span>
+                                        {% elif row.Risk_level == 'Low' %}
+                                            <span class="pill low">{{ row.Risk_score }}%</span>
+                                        {% else %}
+                                            <span class="muted">&ndash;</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="content-card">
+                    <p class="desc" style="margin:0;">No login attempts match the current filters.</p>
+                </div>
+                {% endif %}
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

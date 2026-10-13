@@ -1,54 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - My Profile</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
+<body class="dash">
+    {% set risk_val = (risk.Risk_score | float) if (risk and risk.Risk_score is not none) else 0 %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span></div>
-            <nav>
-                <a href="/dashboard">Dashboard</a>
-                <a href="/profile" class="active">My Profile</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/login-history">Login History</a>
-                <a href="/feedback">Feedback</a>
-                <a href="/logout">Logout</a>
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>My Profile</h2>
-            <p class="subtitle">Manage your account and personal information</p>
-
-            <div class="content-card" style="max-width:480px;">
-                {% if user.Profile_image %}
-    <img src="{{ url_for('static', filename='uploads/' + user.Profile_image) }}" 
-         style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:16px;">
-{% endif %}
-                <p style="margin-bottom:10px;"><b>Full Name:</b> {{ user.First_name }}</p>
-                <p style="margin-bottom:10px;"><b>Email:</b> {{ user.Email }}</p>
-                <p style="margin-bottom:10px;"><b>Role:</b> Student</p>
-                <p style="margin-bottom:10px;">
-                    <b>Account Status:</b>
-                    <span class="{{ 'status-locked' if user.Account_status == 'Locked' else 'status-active' }}">
-                        {{ user.Account_status }}
-                    </span>
-                </p>
-                <p style="margin-bottom:20px;">
-                    <b>Current Risk Score:</b>
-                    {% if risk %}
-                        <span class="{% if risk.Risk_level == 'High' %}risk-high{% elif risk.Risk_level == 'Medium' %}risk-medium{% else %}risk-low{% endif %}">
-                            {{ risk.Risk_score }}% ({{ risk.Risk_level }})
-                        </span>
-                    {% else %}
-                        No login data yet
-                    {% endif %}
-                </p>
-                <a href="/profile/edit" class="btn btn-primary" style="text-decoration:none;">Edit Profile</a>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="graduation-cap"></i></div>
+                <div class="brand-text">Code<span>Craft</span></div>
             </div>
+
+            <nav>
+                <div class="nav-group">Menu</div>
+                <a href="/dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/profile" class="active"><i data-lucide="user"></i><span>My Profile</span></a>
+                <a href="/login-history"><i data-lucide="history"></i><span>Login History</span></a>
+                <a href="/notifications"><i data-lucide="bell"></i><span>Notifications</span></a>
+
+                <div class="nav-group">Account</div>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                <a href="/feedback"><i data-lucide="message-square"></i><span>Feedback</span></a>
+
+                <div class="nav-group">Support</div>
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ user.First_name }}">S</div>
+                <div class="who">
+                    <strong>{{ user.First_name }}</strong>
+                    <small>Student</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/notifications" class="icon-btn" aria-label="Notifications"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ user.First_name }}" aria-label="Profile">S</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/profile"><i data-lucide="user"></i>My Profile</a>
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>My Profile</h2>
+                <p class="subtitle">Manage your account and personal information</p>
+
+                <div class="grid-2">
+                    <!-- Personal info -->
+                    <div class="content-card">
+                        <div class="profile-head">
+                            {% if user.Profile_image %}
+                                <img class="profile-avatar"
+                                     src="{{ url_for('static', filename='uploads/' + user.Profile_image) }}"
+                                     alt="Profile photo">
+                            {% else %}
+                                <div class="profile-avatar placeholder" data-initials="{{ user.First_name }}">S</div>
+                            {% endif %}
+                            <div>
+                                <h3>{{ user.First_name }}</h3>
+                                <p>{{ user.Email }}</p>
+                            </div>
+                        </div>
+
+                        <div class="info-row">
+                            <span class="k">Full Name</span>
+                            <span class="v">{{ user.First_name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="k">Email</span>
+                            <span class="v">{{ user.Email }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="k">Role</span>
+                            <span class="v">Student</span>
+                        </div>
+                        <div class="info-row last">
+                            <span class="k">Account Status</span>
+                            <span class="v">
+                                <span class="{{ 'status-locked' if user.Account_status == 'Locked' else 'status-active' }}">
+                                    {{ user.Account_status }}
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="card-actions">
+                            <a href="/profile/edit" class="btn btn-primary"><i data-lucide="pencil"></i>Edit Profile</a>
+                            <a href="/change-password" class="btn btn-outline">Change Password</a>
+                        </div>
+                    </div>
+
+                    <!-- Risk -->
+                    <div class="content-card">
+                        <h3>Account Security</h3>
+                        <p class="desc">Risk level of your latest login.</p>
+
+                        {% if risk %}
+                            <div class="big-number {% if risk.Risk_level == 'High' %}risk-high{% elif risk.Risk_level == 'Medium' %}risk-medium{% else %}risk-low{% endif %}">
+                                {{ risk.Risk_score }}%
+                            </div>
+                            <div class="progress {% if risk.Risk_level == 'High' %}danger{% endif %}">
+                                <div data-percent="{{ risk_val }}"></div>
+                            </div>
+                            <div class="progress-meta">
+                                <span>Risk level: {{ risk.Risk_level }}</span>
+                                <span>Latest login</span>
+                            </div>
+                        {% else %}
+                            <p class="desc" style="margin:0;">No login data yet</p>
+                        {% endif %}
+
+                        <div class="card-actions">
+                            <a href="/login-history" class="btn btn-outline"><i data-lucide="history"></i>View Login History</a>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

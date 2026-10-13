@@ -1,71 +1,245 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Manage Users</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        
+        .dash .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .dash .toolbar .search { flex: 1 1 260px; max-width: 360px; background: var(--surface); }
+        .dash .toolbar .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .dash .toolbar .btn { height: 38px; padding: 0 14px; cursor: pointer; }
+        .dash .toolbar .count { margin-left: auto; font-size: 13px; color: var(--muted); }
+
+        .dash .notice {
+            display: flex; align-items: center; gap: 10px;
+            margin: 0 0 16px; padding: 12px 16px;
+            border-left: 4px solid var(--accent); color: var(--text); font-size: 14px;
+        }
+        .dash .notice svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
+
+        .dash .um-card { margin: 0; padding: 0; overflow: hidden; }
+        .dash .um-scroll { overflow-x: auto; }
+        .dash .um-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+        .dash .um-table th {
+            text-align: left; padding: 12px 20px; font-size: 12px; font-weight: 600;
+            color: var(--muted); border-bottom: 1px solid var(--border);
+        }
+        .dash .um-table td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+        .dash .um-table tr:last-child td { border-bottom: 0; }
+        .dash .um-table tbody tr:hover { background: var(--hover); }
+
+        .dash .uid { color: var(--muted); font-variant-numeric: tabular-nums; }
+        .dash .person { display: flex; align-items: center; gap: 12px; }
+        .dash .person .avatar { width: 36px; height: 36px; font-size: 12px; flex: none; }
+        .dash .person strong { font-weight: 600; }
+        .dash .mail { color: var(--muted); word-break: break-all; }
+
+        .dash .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .dash .pill.active { background: var(--success-bg); color: var(--success); }
+        .dash .pill.locked { background: var(--danger-bg);  color: var(--danger); }
+
+        .dash .um-table .btn { margin: 0; height: 34px; padding: 0 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+        .dash .um-table .btn svg { width: 14px; height: 14px; }
+        .dash .um-table form { margin: 0; }
+        .dash .dash-none { color: var(--muted); }
+
+        .dash .empty { text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px; }
+        .dash .no-match { display: none; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
-            <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/monitoring">System Monitoring</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users" class="active">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/reports">Generate Reports</a>
-                {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-                {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>Manage Users</h2>
-            <p class="subtitle">Lock or unlock student accounts</p>
-
-            <div class="content-card">
-                <table>
-                    <tr><th>User ID</th><th>Name</th><th>Email</th><th>Status</th><th>Action</th></tr>
-                    {% for user in users %}
-                    <tr>
-                        <td>{{ user.User_ID }}</td>
-                        <td>{{ user.First_name }}</td>
-                        <td>{{ user.Email }}</td>
-                        <td>
-                            {% if user.Account_status == 'Locked' %}
-                                <span class="status-locked">{{ user.Account_status }}</span>
-                            {% else %}
-                                <span class="status-active">{{ user.Account_status }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if user.Account_status == 'Locked' %}
-                            <form method="POST" action="/admin/unlock/{{ user.User_ID }}" style="display:inline;">
-                                <button type="submit" class="btn btn-success">Unlock</button>
-                            </form>
-                            {% else %}
-                            —
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                {% if message %}
-                    <div class="message">{{ message }}</div>
-                {% endif %}
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
             </div>
+
+            <nav>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users" class="active"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/rejection-log"><i data-lucide="user-x"></i><span>Rejection Log</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Manage Users</h2>
+                <p class="subtitle">Lock or unlock student accounts</p>
+
+                {% if message %}
+                <div class="content-card notice">
+                    <i data-lucide="info"></i><span>{{ message }}</span>
+                </div>
+                {% endif %}
+
+                {% if users %}
+                <div class="toolbar">
+                    <label class="search">
+                        <i data-lucide="search"></i>
+                        <input id="rowSearch" type="text" placeholder="Search ID, name or email..." autocomplete="off">
+                    </label>
+                    <div class="chips">
+                        <button type="button" class="btn btn-primary" data-filter="all">All</button>
+                        <button type="button" class="btn btn-outline" data-filter="active">Active</button>
+                        <button type="button" class="btn btn-outline" data-filter="locked">Locked</button>
+                    </div>
+                    <span class="count" id="rowCount"></span>
+                </div>
+
+                <div class="content-card um-card">
+                    <div class="um-scroll">
+                        <table class="um-table">
+                            <thead>
+                                <tr><th>User ID</th><th>Name</th><th>Email</th><th>Status</th><th>Action</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                {% set st = 'locked' if user.Account_status == 'Locked' else 'active' %}
+                                <tr data-status="{{ st }}">
+                                    <td class="uid">{{ user.User_ID }}</td>
+                                    <td>
+                                        <div class="person">
+                                            <div class="avatar" data-initials="{{ user.Email }}">S</div>
+                                            <strong>{{ user.First_name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td class="mail">{{ user.Email }}</td>
+                                    <td><span class="pill {{ st }}">{{ user.Account_status }}</span></td>
+                                    <td>
+                                        {% if st == 'locked' %}
+                                        <form method="POST" action="/admin/unlock/{{ user.User_ID }}">
+                                            <button type="submit" class="btn btn-success"><i data-lucide="lock-open"></i>Unlock</button>
+                                        </form>
+                                        {% else %}
+                                        <span class="dash-none">&mdash;</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="empty no-match" id="noMatch">No users match your search.</div>
+                </div>
+
+                {% else %}
+                <div class="content-card">
+                    <p class="desc" style="margin:0;">No users found.</p>
+                </div>
+                {% endif %}
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+        (function () {
+            var rows = Array.prototype.slice.call(document.querySelectorAll('.um-table tbody tr'));
+            if (!rows.length) return;
+            var search = document.getElementById('rowSearch');
+            var btns = document.querySelectorAll('[data-filter]');
+            var count = document.getElementById('rowCount');
+            var noMatch = document.getElementById('noMatch');
+            var status = 'all';
+
+            rows.forEach(function (r) { r._text = r.textContent.toLowerCase(); });
+
+            function apply() {
+                var q = search.value.trim().toLowerCase(), shown = 0;
+                rows.forEach(function (r) {
+                    var ok = (status === 'all' || r.getAttribute('data-status') === status) &&
+                             (!q || r._text.indexOf(q) !== -1);
+                    r.style.display = ok ? '' : 'none';
+                    if (ok) shown++;
+                });
+                count.textContent = shown + ' of ' + rows.length + ' users';
+                noMatch.style.display = shown ? 'none' : 'block';
+            }
+
+            btns.forEach(function (b) {
+                b.addEventListener('click', function () {
+                    status = b.getAttribute('data-filter');
+                    btns.forEach(function (x) {
+                        var on = x === b;
+                        x.classList.toggle('btn-primary', on);
+                        x.classList.toggle('btn-outline', !on);
+                    });
+                    apply();
+                });
+            });
+            search.addEventListener('input', apply);
+
+            apply();
+        })();
+    </script>
 </body>
 </html>

@@ -1,113 +1,253 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - System Monitoring</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+       
+        .dash .page-head {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            gap: 16px; flex-wrap: wrap; margin-bottom: 24px;
+        }
+        .dash .page-head .subtitle { margin-bottom: 0; }
+        .dash .page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .dash .page-actions .btn { cursor: pointer; }
+        .dash .updated { font-size: 12px; color: var(--muted); }
+
+        .dash .status-card {
+            display: flex; align-items: center; gap: 16px;
+            border-left: 4px solid var(--success);
+        }
+        .dash .status-card.bad { border-left-color: var(--danger); }
+        .dash .status-card .label { color: var(--muted); font-size: 13px; font-weight: 500; }
+        .dash .status-card .state { font-size: 18px; font-weight: 600; color: var(--success); }
+        .dash .status-card.bad .state { color: var(--danger); }
+
+        .dash .pulse {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: var(--success); flex-shrink: 0;
+            box-shadow: 0 0 0 0 rgba(34,197,94,.5);
+            animation: pulse 2s infinite;
+        }
+        .dash .status-card.bad .pulse { background: var(--danger); animation: none; }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+            70%  { box-shadow: 0 0 0 10px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+
+        .dash .section-title {
+            font-size: 13px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: .04em;
+            margin: 8px 0 12px;
+        }
+        .dash .widget-card .value.sm { font-size: 24px; line-height: 1.5; word-break: break-word; }
+        .dash .meta-line { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+        .dash .meta-line svg { width: 16px; height: 16px; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
+            </div>
+
             <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/monitoring" class="active">System Monitoring</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/settings">System Settings</a>
-                <a href="/admin/import">Import Data</a>
-                <a href="/admin/reports">Generate Reports</a>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring" class="active"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
                 {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
                 {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
             </nav>
-        </div>
 
-        <div class="main-content">
-            <h2>System Monitoring</h2>
-            <p class="subtitle">Live system status and key operational metrics</p>
-
-            <div class="content-card" style="border-left:3px solid {% if db_ok %}#3fc97a{% else %}#e05555{% endif %};">
-                <p style="color:#9aa4b8; font-size:12px; margin-bottom:4px;">Database Connection</p>
-                <p style="font-size:16px; font-weight:600; color:{% if db_ok %}#3fc97a{% else %}#e05555{% endif %};">
-                    {{ db_status }}
-                </p>
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
             </div>
+        </aside>
+        <div class="overlay"></div>
 
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">Server Uptime</div>
-                    <div class="value">{{ uptime }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Total Students</div>
-                    <div class="value">{{ stats.total_students }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Total Admins</div>
-                    <div class="value">{{ stats.total_admins }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Locked Accounts</div>
-                    <div class="value {% if stats.locked_accounts > 0 %}risk-high{% else %}risk-low{% endif %}">
-                        {{ stats.locked_accounts }}
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts">
+                    <i data-lucide="bell"></i>
+                    {% if stats.pending_alerts > 0 %}<span class="dot"></span>{% endif %}
+                </a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">Logins Today</div>
-                    <div class="value">{{ stats.attempts_today }}</div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Failed Logins (24h)</div>
-                    <div class="value {% if stats.failed_last_24h > 0 %}risk-medium{% else %}risk-low{% endif %}">
-                        {{ stats.failed_last_24h }}
+            <main class="main-content">
+                <div class="page-head">
+                    <div>
+                        <h2>System Monitoring</h2>
+                        <p class="subtitle">Live system status and key operational metrics</p>
+                    </div>
+                    <div class="page-actions">
+                        <span class="updated" id="updatedAt"></span>
+                        <button type="button" class="btn btn-outline" id="refreshBtn"><i data-lucide="refresh-cw"></i>Refresh</button>
+                        <button type="button" class="btn btn-outline" id="autoBtn">Auto-refresh: Off</button>
                     </div>
                 </div>
-                <div class="widget-card">
-                    <div class="label">Pending Security Alerts</div>
-                    <div class="value {% if stats.pending_alerts > 0 %}risk-high{% else %}risk-low{% endif %}">
-                        {{ stats.pending_alerts }}
+
+                <!-- Database status -->
+                <div class="content-card status-card {% if not db_ok %}bad{% endif %}">
+                    <span class="pulse"></span>
+                    <div>
+                        <div class="label">Database Connection</div>
+                        <div class="state">{{ db_status }}</div>
                     </div>
                 </div>
-                <div class="widget-card">
-                    <div class="label">Pending Admin Approvals</div>
-                    <div class="value {% if stats.pending_admin_approvals > 0 %}risk-medium{% else %}risk-low{% endif %}">
-                        {{ stats.pending_admin_approvals }}
+
+                <div class="section-title">Users &amp; Accounts</div>
+                <div class="widget-row">
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Server Uptime</div><i data-lucide="timer"></i></div>
+                        <div class="value sm">{{ uptime }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Total Students</div><i data-lucide="graduation-cap"></i></div>
+                        <div class="value" data-count="{{ stats.total_students }}">{{ stats.total_students }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Total Admins</div><i data-lucide="shield"></i></div>
+                        <div class="value" data-count="{{ stats.total_admins }}">{{ stats.total_admins }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Locked Accounts</div><i data-lucide="lock"></i></div>
+                        <div class="value {% if stats.locked_accounts > 0 %}risk-high{% else %}risk-low{% endif %}"
+                             data-count="{{ stats.locked_accounts }}">{{ stats.locked_accounts }}</div>
                     </div>
                 </div>
-            </div>
 
-            <div class="content-card">
-                <h3>Backup Status</h3>
-                <p style="color:#9aa4b8; margin-bottom:8px;">
-                    {{ backup_count }} backup(s) stored.
-                    {% if latest_backup %}
-                        Most recent: <strong>{{ latest_backup }}</strong>
-                    {% else %}
-                        No backups have been created yet.
-                    {% endif %}
-                </p>
-                <a href="/admin/backup" class="btn btn-primary" style="text-decoration:none; display:inline-block;">Go to Data Backup</a>
-            </div>
+                <div class="section-title">Activity &amp; Security</div>
+                <div class="widget-row">
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Logins Today</div><i data-lucide="log-in"></i></div>
+                        <div class="value" data-count="{{ stats.attempts_today }}">{{ stats.attempts_today }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Failed Logins (24h)</div><i data-lucide="circle-x"></i></div>
+                        <div class="value {% if stats.failed_last_24h > 0 %}risk-medium{% else %}risk-low{% endif %}"
+                             data-count="{{ stats.failed_last_24h }}">{{ stats.failed_last_24h }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Pending Security Alerts</div><i data-lucide="bell-ring"></i></div>
+                        <div class="value {% if stats.pending_alerts > 0 %}risk-high{% else %}risk-low{% endif %}"
+                             data-count="{{ stats.pending_alerts }}">{{ stats.pending_alerts }}</div>
+                    </div>
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Pending Admin Approvals</div><i data-lucide="user-check"></i></div>
+                        <div class="value {% if stats.pending_admin_approvals > 0 %}risk-medium{% else %}risk-low{% endif %}"
+                             data-count="{{ stats.pending_admin_approvals }}">{{ stats.pending_admin_approvals }}</div>
+                    </div>
+                </div>
 
-            <div class="content-card">
-                <p style="color:#9aa4b8; font-size:12px;">
-                    Server started: {{ server_start }}
-                </p>
-            </div>
+                <div class="grid-2" style="margin-top:8px;">
+                    <div class="content-card">
+                        <h3>Backup Status</h3>
+                        <p class="desc">
+                            {{ backup_count }} backup(s) stored.
+                            {% if latest_backup %}
+                                Most recent: <strong style="color:var(--text);">{{ latest_backup }}</strong>
+                            {% else %}
+                                No backups have been created yet.
+                            {% endif %}
+                        </p>
+                        <a href="/admin/backup" class="btn btn-primary"><i data-lucide="database-backup"></i>Go to Data Backup</a>
+                    </div>
+
+                    <div class="content-card">
+                        <h3>Server</h3>
+                        <p class="desc">Runtime information.</p>
+                        <div class="meta-line"><i data-lucide="power"></i>Server started: {{ server_start }}</div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+        /* Refresh + auto-refresh (30s) */
+        (function () {
+            var KEY = 'cc-monitor-auto', INTERVAL = 30;
+            var autoBtn = document.getElementById('autoBtn');
+            var refreshBtn = document.getElementById('refreshBtn');
+            var updated = document.getElementById('updatedAt');
+            var timer = null;
+
+            updated.textContent = 'Updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            function setAuto(on) {
+                localStorage.setItem(KEY, on ? '1' : '0');
+                autoBtn.textContent = 'Auto-refresh: ' + (on ? INTERVAL + 's' : 'Off');
+                autoBtn.classList.toggle('btn-primary', on);
+                autoBtn.classList.toggle('btn-outline', !on);
+                clearTimeout(timer);
+                if (on) timer = setTimeout(function () { location.reload(); }, INTERVAL * 1000);
+            }
+
+            refreshBtn.addEventListener('click', function () { location.reload(); });
+            autoBtn.addEventListener('click', function () {
+                setAuto(localStorage.getItem(KEY) !== '1');
+            });
+            setAuto(localStorage.getItem(KEY) === '1');
+        })();
+    </script>
 </body>
 </html>

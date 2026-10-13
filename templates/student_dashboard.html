@@ -1,74 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Student Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body>
+<body class="dash">
+    {% set latest = history[0] if history else none %}
+    {% set risk_val = (latest.Risk_score | float) if (latest and latest.Risk_score is not none) else 0 %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span></div>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="graduation-cap"></i></div>
+                <div class="brand-text">Code<span>Craft</span></div>
+            </div>
+
             <nav>
-                <a href="/dashboard" class="active">Dashboard</a>
-                <a href="/profile">My Profile</a>
-                <a href="/login-history">Login History</a>
-                <a href="/change-password">Change Password</a>
-                <a href="/feedback">Feedback</a>
-                <a href="/notifications"> Notifications</a>
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
+                <div class="nav-group">Menu</div>
+                <a href="/dashboard" class="active"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/profile"><i data-lucide="user"></i><span>My Profile</span></a>
+                <a href="/login-history"><i data-lucide="history"></i><span>Login History</span></a>
+                <a href="/notifications"><i data-lucide="bell"></i><span>Notifications</span></a>
+
+                <div class="nav-group">Account</div>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                <a href="/feedback"><i data-lucide="message-square"></i><span>Feedback</span></a>
+
+                <div class="nav-group">Support</div>
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
             </nav>
-        </div>
 
-        <div class="main-content">
-            <h2>Student Dashboard</h2>
-            <p class="subtitle">Welcome, {{ first_name }} — CodeCraft Credential Theft Detection System</p>
-
-            <div class="widget-row">
-                <div class="widget-card">
-                    <div class="label">Total Logins</div>
-                    <div class="value">{{ history|length }}</div>
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ first_name }}">S</div>
+                <div class="who">
+                    <strong>{{ first_name }}</strong>
+                    <small>Student</small>
                 </div>
-                <div class="widget-card">
-                    <div class="label">Last Login</div>
-                    <div class="value" style="font-size:16px;">
-                        {{ history[0].Login_time if history else '-' }}
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/notifications" class="icon-btn" aria-label="Notifications">
+                    <i data-lucide="bell"></i>
+                    {% if alerts|length > 0 %}<span class="dot"></span>{% endif %}
+                </a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ first_name }}" aria-label="Profile">S</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/profile"><i data-lucide="user"></i>My Profile</a>
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
                     </div>
                 </div>
-                <div class="widget-card">
-                    <div class="label">Current Risk Score</div>
-                    <div class="value
-                        {% if history and history[0].Risk_level == 'High' %}risk-high
-                        {% elif history and history[0].Risk_level == 'Medium' %}risk-medium
-                        {% elif history and history[0].Risk_level == 'Low' %}risk-low
-                        {% endif %}">
-                        {% if history and history[0].Risk_score is not none %}
-                            {{ history[0].Risk_score }}%
+            </header>
+
+            <main class="main-content">
+                <h2><span data-greeting>Welcome</span>, {{ first_name }}</h2>
+                <p class="subtitle">CodeCraft Credential Theft Detection System &mdash; your account overview</p>
+
+                <div class="widget-row">
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Total Logins</div><i data-lucide="log-in"></i></div>
+                        <div class="value" data-count="{{ history|length }}">{{ history|length }}</div>
+                    </div>
+
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Last Login</div><i data-lucide="clock"></i></div>
+                        <div class="value" style="font-size:18px; line-height:1.9;">
+                            {{ latest.Login_time if latest else '-' }}
+                        </div>
+                    </div>
+
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Current Risk Score</div><i data-lucide="gauge"></i></div>
+                        <div class="value
+                            {% if latest and latest.Risk_level == 'High' %}risk-high
+                            {% elif latest and latest.Risk_level == 'Medium' %}risk-medium
+                            {% elif latest and latest.Risk_level == 'Low' %}risk-low
+                            {% endif %}">
+                            {% if latest and latest.Risk_score is not none %}{{ latest.Risk_score }}%{% else %}-{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="widget-card">
+                        <div class="head"><div class="label">Security Alerts</div><i data-lucide="bell-ring"></i></div>
+                        <div class="value {% if alerts|length > 0 %}risk-high{% else %}risk-low{% endif %}"
+                             data-count="{{ alerts|length }}">{{ alerts|length }}</div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <!-- Course Overview -->
+                    <div class="content-card">
+                        <h3>Course Overview</h3>
+                        <p class="desc">Courses you are enrolled in.</p>
+
+                        {% if courses %}
+                        <div class="quick-links">
+                            {% for course in courses %}
+                            <a href="/courses/{{ course.Course_ID }}">
+                                <i data-lucide="book-open"></i>
+                                {{ course.Course_name }}
+                                <i data-lucide="chevron-right" style="margin-left:auto;"></i>
+                            </a>
+                            {% endfor %}
+                        </div>
                         {% else %}
-                            -
+                            <p class="desc" style="margin:0;">No enrolled courses yet.</p>
                         {% endif %}
                     </div>
-                </div>
-                <div class="widget-card">
-                    <div class="label">Security Alerts</div>
-                    <div class="value {% if alerts|length > 0 %}risk-high{% else %}risk-low{% endif %}">
-                        {{ alerts|length }}
-                    </div>
-                </div>
-            </div>
 
-            <div class="content-card">
-                <h3>Course Overview</h3>
-                {% for course in courses %}
-                    <div class="list-item">
-                        <a href="/courses/{{ course.Course_ID }}">{{ course.Course_name }}</a>
+                    <!-- Account Security -->
+                    <div class="content-card">
+                        <h3>Account Security</h3>
+                        <p class="desc">Risk level of your latest login.</p>
+
+                        <div class="big-number">
+                            {% if latest and latest.Risk_score is not none %}{{ latest.Risk_score }}%{% else %}-{% endif %}
+                        </div>
+                        <div class="progress {% if latest and latest.Risk_level == 'High' %}danger{% endif %}">
+                            <div data-percent="{{ risk_val }}"></div>
+                        </div>
+                        <div class="progress-meta">
+                            <span>Risk level: {{ latest.Risk_level if latest and latest.Risk_level else 'N/A' }}</span>
+                            <span>{{ alerts|length }} alert{{ '' if alerts|length == 1 else 's' }}</span>
+                        </div>
+
+                        <div style="margin-top:24px;">
+                            <a href="/login-history" class="btn btn-primary"><i data-lucide="history"></i>Login History</a>
+                            <a href="/change-password" class="btn btn-outline">Change Password</a>
+                        </div>
                     </div>
-                {% endfor %}
-                {% if not courses %}
-                    <p style="color:#9aa4b8;">No enrolled courses yet.</p>
-                {% endif %}
-            </div>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

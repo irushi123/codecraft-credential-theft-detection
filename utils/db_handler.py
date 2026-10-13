@@ -2,9 +2,9 @@ import pymysql
 from datetime import datetime, timedelta
 
 
-# =====================================================
+
 # DATABASE CONNECTION
-# =====================================================
+
 
 def get_db_connection():
     connection = pymysql.connect( 
@@ -18,9 +18,8 @@ def get_db_connection():
     return connection
 
 
-# =====================================================
+
 # USER FUNCTIONS
-# =====================================================
 
 def check_email_exists(email):
     conn = get_db_connection()
@@ -178,9 +177,9 @@ def is_admin_user(user_id):
     return result is not None
 
 
-# =====================================================
+
 # COURSE FUNCTIONS
-# =====================================================
+
 
 def enroll_user_in_all_courses(user_id):
     conn = get_db_connection()
@@ -267,9 +266,8 @@ def get_course_by_id(course_id, user_id):
     return result
 
 
-# =====================================================
+
 # LOGIN FUNCTIONS
-# =====================================================
 
 def save_login_attempt(
     user_id,
@@ -411,9 +409,8 @@ def get_user_login_history(user_id):
     return results
 
 
-# =====================================================
+
 # RISK FUNCTIONS
-# =====================================================
 
 def save_risk_assessment(
     login_id,
@@ -549,9 +546,9 @@ def get_all_students_latest_risk():
     return results
 
 
-# =====================================================
+
 # ADMIN DASHBOARD
-# =====================================================
+
 
 def get_system_monitoring_stats():
     conn = get_db_connection()
@@ -668,9 +665,9 @@ def get_admin_dashboard_stats():
     }
 
 
-# =====================================================
+
 # LOGIN ATTEMPTS / EXPLANATIONS
-# =====================================================
+
 
 def get_all_login_attempts(
     start_date=None,
@@ -791,9 +788,9 @@ def get_all_explanations():
     return results
 
 
-# =====================================================
+
 # SECURITY ALERTS
-# =====================================================
+
 
 def create_security_alert(
     risk_id,
@@ -924,9 +921,9 @@ def get_alert_by_id(alert_id):
     return result
 
 
-# =====================================================
+
 # ADMIN ACTIONS
-# =====================================================
+
 
 def lock_user_account(user_id, admin_id):
     conn = get_db_connection()
@@ -1066,9 +1063,9 @@ def get_all_admin_actions():
     return results
 
 
-# =====================================================
+
 # USERS
-# =====================================================
+
 
 def get_all_users():
     conn = get_db_connection()
@@ -1098,9 +1095,8 @@ def get_all_users():
     return results
 
 
-# =====================================================
+
 # PASSWORD
-# =====================================================
 
 def update_user_password(
     user_id,
@@ -1126,9 +1122,9 @@ def update_user_password(
     conn.close()
 
 
-# =====================================================
+
 # EXPORT
-# =====================================================
+# 
 
 def get_login_attempts_for_export(
     start_date=None,
@@ -1198,9 +1194,9 @@ def get_login_attempts_for_export(
     return results
 
 
-# =====================================================
+
 # REPORTS
-# =====================================================
+
 
 def get_report_data(
     start_date=None,
@@ -1336,9 +1332,9 @@ def get_report_data(
     }
 
 
-# =====================================================
+
 # FEEDBACK
-# =====================================================
+
 
 def submit_feedback(
     user_id,
@@ -1389,9 +1385,9 @@ def get_user_feedback(user_id):
     return results
 
 
-# =====================================================
+
 # SUPER ADMIN
-# =====================================================
+
 
 def is_super_admin(user_id):
     conn = get_db_connection()
@@ -1510,9 +1506,9 @@ def approve_admin(
     conn.close()
 
 
-# =====================================================
+
 # ADMIN OTP
-# =====================================================
+
 
 def save_admin_otp(
     user_id,
@@ -1771,9 +1767,9 @@ def get_admin_name_email(user_id):
     return result
 
 
-# =====================================================
+
 # ADMIN REJECTION
-# =====================================================
+
 
 def reject_admin_with_reason(
     user_id,
@@ -1888,9 +1884,9 @@ def get_rejection_log():
     return results
 
 
-# =====================================================
+
 # UPDATE USER PROFILE
-# =====================================================
+
 
 def update_user_profile(
     user_id,
@@ -1942,9 +1938,9 @@ def update_user_profile(
     conn.close()
 
 
-# =====================================================
+
 # FORGOT PASSWORD
-# =====================================================
+
 
 def save_password_reset_otp(
     email,
@@ -2075,9 +2071,9 @@ def reset_user_password(
     conn.close()
 
 
-# =====================================================
+
 # SYSTEM SETTINGS (Risk Thresholds)
-# =====================================================
+
 
 def get_setting(key, default=None):
     conn = get_db_connection()
@@ -2111,9 +2107,9 @@ def update_setting(key, value):
     conn.close()
 
 
-# =====================================================
+
 # NOTIFICATIONS
-# =====================================================
+
 
 def create_notification(user_id, message):
     conn = get_db_connection()
@@ -2159,9 +2155,9 @@ def get_unread_count(user_id):
     return result['cnt']
 
 
-# =====================================================
+
 # IMPORT DATA (Bulk Course Import)
-# =====================================================
+
 
 def bulk_import_courses(course_list):
     conn = get_db_connection()
@@ -2182,9 +2178,9 @@ def bulk_import_courses(course_list):
     return inserted, skipped   
 
 
-# =====================================================
+
 # PASSWORD RESET RATE LIMITING
-# =====================================================
+
 
 MAX_RESET_REQUESTS = 3
 RESET_WINDOW_MINUTES = 15

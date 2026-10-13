@@ -105,17 +105,11 @@ from utils.ml_engine import (
     generate_explanation
 )
 
-# =====================================================
-# EMAIL CONFIGURATION (OTP)
-# =====================================================
 
-# ⚠️ DEMO CONFIG — replace with real SMTP credentials for production use.
-# Leave blank to run in "console mode": OTP is printed to the server
-# terminal only (never shown in the browser), so the flow can still be
-# demoed end-to-end without a live inbox, without leaking the code to
-# whoever is looking at the page.
-SENDER_EMAIL = "codecraft678@gmail.com"       # e.g. "codecraft.security@gmail.com"
-SENDER_PASSWORD = "ivkg ycxp txzd jiwv"    # e.g. Gmail App Password (not your normal password)
+# EMAIL CONFIGURATION (OTP)
+
+SENDER_EMAIL = "codecraft678@gmail.com"       
+SENDER_PASSWORD = "ivkg ycxp txzd jiwv"   
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 
@@ -165,9 +159,9 @@ def send_otp_email(to_email, name, otp_code):
         return True, "console"
 
 
-# =====================================================
+
 # FLASK APP CONFIGURATION
-# =====================================================
+
 
 app = Flask(__name__)
 
@@ -180,9 +174,9 @@ APP_START_TIME = datetime.now()
 app.permanent_session_lifetime = timedelta(minutes=15)
 
 
-# =====================================================
+
 # SECURITY SETTINGS
-# =====================================================
+
 
 # NOTE: ALERT_THRESHOLD is now fetched dynamically from the DB
 # via get_setting('alert_threshold_admin', 80)
@@ -198,9 +192,9 @@ ALLOWED_EMAIL_DOMAINS = [
 ]
 
 
-# =====================================================
+
 # REGEX
-# =====================================================
+
 
 EMAIL_REGEX = (
     r'^[a-zA-Z0-9._%+-]+'
@@ -212,9 +206,8 @@ PASSWORD_SPECIAL_REGEX = (
 )
 
 
-# =====================================================
+
 # PROFILE IMAGE SETTINGS
-# =====================================================
 
 UPLOAD_FOLDER = os.path.join(
     'static',
@@ -233,26 +226,19 @@ os.makedirs(
 )
 
 
-# =====================================================
+
 # DATA BACKUP SETTINGS
-# =====================================================
+
 
 BACKUP_FOLDER = 'backups'
 
-# The encryption key is generated once and stored locally — it is
-# NEVER committed to git (add backup.key and backups/ to .gitignore).
-# Anyone with this key can decrypt your backups, so treat it like a
-# password.
 BACKUP_KEY_PATH = 'backup.key'
 
-# ⚠️ If mysqldump is not on your system PATH, replace this with the
-# full path, e.g.:
-# r"C:\xampp\mysql\bin\mysqldump.exe"
+
 # r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe"
 MYSQLDUMP_PATH = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqldump.exe"
 
-# The mysql client (used for restoring) lives in the same bin folder
-# as mysqldump.
+
 MYSQL_PATH = r"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe"
 
 # Must match the credentials used in utils/db_handler.py get_db_connection()
@@ -284,9 +270,9 @@ def get_or_create_backup_key():
     return key
 
 
-# =====================================================
+
 # HELPER FUNCTIONS
-# =====================================================
+
 
 def allowed_image_file(filename):
     return (
@@ -334,9 +320,9 @@ def is_strong_password(password):
     return True
 
 
-# =====================================================
+
 # LOGIN DECORATORS
-# =====================================================
+
 
 def admin_required(f):
     @wraps(f)
@@ -398,9 +384,9 @@ def super_admin_required(f):
     return decorated
 
 
-# =====================================================
+
 # HOME ROUTE
-# =====================================================
+
 
 @app.route('/')
 def home():
@@ -409,9 +395,9 @@ def home():
     )
 
 
-# =====================================================
+
 # TEST DATABASE ROUTE
-# =====================================================
+
 
 @app.route('/test-db')
 def test_db():
@@ -429,9 +415,9 @@ def test_db():
         )
 
 
-# =====================================================
+
 # REGISTER ROUTE
-# =====================================================
+
 
 @app.route(
     '/register',
@@ -478,10 +464,10 @@ def register():
                 "(e.g., name@example.com)."
             )
 
-        elif email_domain not in ALLOWED_EMAIL_DOMAINS:
+        elif role == 'Admin' and email_domain not in ALLOWED_EMAIL_DOMAINS:
             message = (
-                "Registration failed. Only official campus email "
-                "addresses are allowed "
+                "Registration failed. Admin accounts require an "
+                "official campus email address "
                 f"(e.g., @{ALLOWED_EMAIL_DOMAINS[0]} or "
                 f"@{ALLOWED_EMAIL_DOMAINS[1]})."
             )
@@ -543,10 +529,10 @@ def register():
     )
 
 
-# =====================================================
+
 # LOGIN ROUTE
 # STUDENT + ADMIN
-# =====================================================
+
 
 @app.route(
     '/login',
@@ -602,7 +588,8 @@ def login():
         admin_flag = is_admin_user(
             user['User_ID']
         )
-
+        context = get_login_context(request, user_id=user['User_ID'])
+        print(f"[DEBUG] Context: {context}")
         # =================================================
         # ADMIN LOGIN
         # =================================================
@@ -861,9 +848,9 @@ def login():
     )
 
 
-# =====================================================
+
 # ADMIN LOGIN — OTP VERIFICATION (2FA, every login)
-# =====================================================
+
 
 @app.route(
     '/admin/login-verify',
@@ -947,9 +934,9 @@ def admin_login_verify():
     )
 
 
-# =====================================================
+
 # FORGOT PASSWORD
-# =====================================================
+
 
 @app.route(
     '/forgot-password',
@@ -1007,9 +994,7 @@ def forgot_password():
                     expiry_minutes=10
                 )
 
-                # OTP is sent by email (or logged to the server console
-                # in demo mode) — it is NEVER included in the response
-                # shown to the user in the browser.
+                
                 send_otp_email(
                     user['Email'],
                     user['First_name'],
@@ -1024,16 +1009,15 @@ def forgot_password():
                     )
                 )
 
-    # ---- Fallback: GET requests, and any POST branch above that ----
-    # ---- only set `message` without returning a response yet     ----
+    
     return render_template(
         'forgot_password.html',
         message=message
     )
 
-# =====================================================
+
 # RESET PASSWORD
-# =====================================================
+
 
 @app.route(
     '/reset-password',
@@ -1142,10 +1126,9 @@ def reset_password():
     )
 
 
-# =====================================================
 # PUBLIC ADMIN OTP VERIFICATION
 # (registration-approval verification — one time only)
-# =====================================================
+
 
 @app.route(
     '/verify-admin-email',
@@ -1189,9 +1172,9 @@ def verify_admin_email():
     )
 
 
-# =====================================================
+
 # LOGOUT
-# =====================================================
+
 
 @app.route('/help')
 def help_support():
@@ -1206,9 +1189,9 @@ def help_support():
     )
 
 
-# =====================================================
+
 # LOGOUT
-# =====================================================
+
 
 @app.route('/logout')
 def logout():
@@ -1218,9 +1201,9 @@ def logout():
     )
 
 
-# =====================================================
+
 # STUDENT ROUTES
-# =====================================================
+
 
 @app.route('/dashboard')
 @student_required
@@ -1411,9 +1394,8 @@ def view_course(course_id):
     )
 
 
-# =====================================================
+
 # CHANGE PASSWORD
-# =====================================================
 
 @app.route(
     '/change-password',
@@ -1492,9 +1474,9 @@ def change_password():
     )
 
 
-# =====================================================
+
 # FEEDBACK
-# =====================================================
+
 
 @app.route(
     '/feedback',
@@ -1537,9 +1519,9 @@ def feedback():
     )
 
 
-# =====================================================
+
 # ADMIN ROUTES
-# =====================================================
+
 
 @app.route('/admin')
 @admin_required
@@ -1827,9 +1809,9 @@ def audit_log():
     )
 
 
-# =====================================================
+
 # ADMIN EXPORT
-# =====================================================
+
 
 @app.route('/admin/export')
 @admin_required
@@ -1911,9 +1893,9 @@ def export_form():
     )
 
 
-# =====================================================
+
 # ADMIN REPORTS
-# =====================================================
+
 
 @app.route(
     '/admin/reports',
@@ -1959,9 +1941,8 @@ def generate_reports():
     )
 
 
-# =====================================================
+
 # SUPER ADMIN ROUTES
-# =====================================================
 
 @app.route('/admin/pending-admins')
 @super_admin_required
@@ -2099,9 +2080,8 @@ def rejection_log():
     )
 
 
-# =====================================================
 # SUPER ADMIN — DATA BACKUP
-# =====================================================
+
 
 @app.route(
     '/admin/backup',
@@ -2248,9 +2228,9 @@ def download_backup(filename):
     )
 
 
-# =====================================================
+
 # SUPER ADMIN — DATA RESTORE
-# =====================================================
+
 
 @app.route(
     '/admin/restore',
@@ -2447,9 +2427,9 @@ def data_restore():
     )
 
 
-# =====================================================
+
 # STUDENT NOTIFICATIONS
-# =====================================================
+
 
 @app.route('/notifications')
 def notifications():
@@ -2461,9 +2441,9 @@ def notifications():
     return render_template('notifications.html', notifications=notes)
 
 
-# =====================================================
+
 # SUPER ADMIN — SYSTEM SETTINGS (Risk Thresholds)
-# =====================================================
+
 
 @app.route('/admin/settings', methods=['GET', 'POST'])
 @super_admin_required
@@ -2480,9 +2460,9 @@ def system_settings():
     return render_template('system_settings.html', settings=settings, message=message)
 
 
-# =====================================================
+
 # ADMIN — IMPORT DATA (Bulk Course Import)
-# =====================================================
+
 
 @app.route('/admin/import', methods=['GET', 'POST'])
 @admin_required
@@ -2509,15 +2489,40 @@ def import_data():
     return render_template('import_data.html', message=message)
 
 
-# =====================================================
+
+# ERROR HANDLERS
+# (Functional Requirement #28 — Handle System Errors)
+
+
+@app.errorhandler(404)
+def not_found_error(e):
+    return render_template(
+        'error.html',
+        code=404,
+        message=(
+            "The page you're looking for doesn't exist "
+            "or may have been moved."
+        )
+    ), 404
+
+
+@app.errorhandler(500)
+def internal_error(e):
+    return render_template(
+        'error.html',
+        code=500,
+        message=(
+            "Something went wrong on our end. "
+            "Please try again, and contact an administrator "
+            "if the problem continues."
+        )
+    ), 500
+
+
+
 # SESSION TIMEOUT HANDLER
-# =====================================================
-# Refreshes the sliding-expiration timer on every request, so an
-# active user never gets logged out mid-use. If MAX inactivity
-# (app.permanent_session_lifetime) is exceeded, Flask's session
-# cookie will have already expired and 'user_id' will no longer be
-# present, so the @student_required / @admin_required decorators
-# will naturally redirect to login.
+
+
 
 @app.before_request
 def refresh_session():
@@ -2525,9 +2530,9 @@ def refresh_session():
     session.modified = True
 
 
-# =====================================================
+
 # RUN APPLICATION
-# =====================================================
+
 
 if __name__ == '__main__':
     app.run(

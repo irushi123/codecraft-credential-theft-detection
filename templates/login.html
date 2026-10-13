@@ -1,136 +1,174 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Login</title>
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        .password-container {
-            width: 100%;
+        
+        .dash.login-dash {
+            min-height: 100vh; margin: 0; padding: 24px;
+            display: grid; place-items: center;
+            background: var(--bg, var(--surface));
+            color: var(--text);
         }
+        .dash.login-dash .login-wrap { width: 100%; max-width: 420px; margin: 0 auto; }
 
-        .password-container input[type="password"],
-        .password-container input[type="text"] {
-            width: 100%;
-            box-sizing: border-box;
+        /* Brand: logo uda, text yata, dekama center */
+        .dash.login-dash .login-brand {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 10px; width: 100%; margin: 0 0 20px;
+            text-align: center;
         }
+        .dash.login-dash .login-brand .brand-logo {
+            width: 46px; height: 46px; margin: 0 auto; flex: none;
+            border-radius: 12px; display: grid; place-items: center;
+            background: var(--hover); color: var(--accent);
+        }
+        .dash.login-dash .login-brand .brand-logo svg { width: 24px; height: 24px; }
+        .dash.login-dash .login-brand .brand-text {
+            display: block; width: 100%; flex: none; margin: 0; padding: 0;
+            text-align: center; font-size: 22px; font-weight: 700; color: var(--text);
+        }
+        .dash.login-dash .login-brand .brand-text span { color: var(--accent); }
 
-        .show-password {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            font-size: 13px;
-            color: #555;
-            cursor: pointer;
+        .dash .login-card { margin: 0; padding: 28px 24px; }
+        .dash .login-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+        .dash .login-head .ico {
+            width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+            background: var(--hover); color: var(--accent); flex: none;
         }
+        .dash .login-head .ico svg { width: 18px; height: 18px; }
+        .dash .login-head h3 { margin: 0; font-size: 16px; }
+        .dash .login-sub { margin: 0 0 20px; font-size: 13px; color: var(--muted); }
 
-        .show-password input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-            cursor: pointer;
+        .dash .notice {
+            display: flex; align-items: center; gap: 10px;
+            margin: 0 0 16px; padding: 12px 16px;
+            border-left: 4px solid var(--accent); color: var(--text); font-size: 14px;
         }
+        .dash .notice svg { width: 18px; height: 18px; color: var(--accent); flex: none; }
 
-        .forgot-password {
-            margin-top: 8px;
-            font-size: 13px;
+        .dash .login-form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+        .dash .field { display: flex; flex-direction: column; gap: 6px; }
+        .dash .field label { font-size: 13px; font-weight: 600; color: var(--text); }
+        .dash .field input[type="email"],
+        .dash .field input[type="password"],
+        .dash .field input[type="text"] {
+            width: 100%; height: 42px; padding: 0 12px; box-sizing: border-box;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            font: inherit; font-size: 14px;
         }
+        .dash .field input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
 
-        .forgot-password a {
-            color: #1e5fd9;
-            text-decoration: none;
+        /* Password input + eye icon */
+        .dash .pw-wrap { position: relative; }
+        .dash .pw-wrap input { padding-right: 44px; }
+        .dash .pw-toggle {
+            position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+            width: 32px; height: 32px; padding: 0; margin: 0;
+            display: grid; place-items: center;
+            border: 0; border-radius: 6px; background: transparent;
+            color: var(--muted); cursor: pointer;
         }
+        .dash .pw-toggle:hover { color: var(--text); background: var(--hover); }
+        .dash .pw-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+        .dash .pw-toggle svg { width: 18px; height: 18px; }
+        .dash .pw-toggle .eye-off { display: none; }
+        .dash .pw-toggle.showing .eye-on { display: none; }
+        .dash .pw-toggle.showing .eye-off { display: inline-flex; }
+        .dash .pw-toggle .eye-on { display: inline-flex; }
 
-        .forgot-password a:hover {
-            text-decoration: underline;
+        .dash .login-actions .btn {
+            margin: 0; width: 100%; height: 44px; cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
         }
+        .dash .login-actions .btn svg { width: 16px; height: 16px; }
+
+        .dash .login-links {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            margin-top: 20px; font-size: 13px;
+        }
+        .dash .login-links a { color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .dash .login-links a:hover { text-decoration: underline; }
+        .dash .login-links a svg { width: 14px; height: 14px; }
     </style>
 </head>
+<body class="dash login-dash">
 
-<body class="auth-page">
+    <div class="login-wrap">
+        <div class="login-brand">
+            <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+            <div class="brand-text">Code<span>Craft</span></div>
+        </div>
 
-    <div class="auth-box">
-
-        <h2>
-            Code<span style="color:#1e5fd9;">Craft</span>
-        </h2>
-
-        <form method="POST">
-
-            <input
-                type="email"
-                name="email"
-                placeholder="Email"
-                required
-            >
-
-            <div class="password-container">
-
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    placeholder="Password"
-                    required
-                >
-
-                <label class="show-password">
-                    <input
-                        type="checkbox"
-                        onclick="togglePassword()"
-                    >
-                    Show Password
-                </label>
-
+        <div class="content-card login-card">
+            <div class="login-head">
+                <div class="ico"><i data-lucide="log-in"></i></div>
+                <h3>Sign in</h3>
             </div>
+            <p class="login-sub">Enter your email and password to continue</p>
 
-            <button type="submit">
-                Login
-            </button>
-
-        </form>
-
-        {% if message %}
-            <div class="message">
-                {{ message }}
+            {% if message %}
+            <div class="content-card notice">
+                <i data-lucide="info"></i><span>{{ message }}</span>
             </div>
-        {% endif %}
+            {% endif %}
 
-        <p class="forgot-password">
-            <a href="{{ url_for('forgot_password') }}">
-                Forgot Password?
-            </a>
-        </p>
+            <form method="POST" class="login-form">
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input id="email" type="email" name="email" placeholder="Email" required autocomplete="email">
+                </div>
 
-        <p style="margin-top:16px; font-size:13px;">
-            <a href="/register">
-                Don't have an account? Register
-            </a>
-        </p>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <div class="pw-wrap">
+                        <input id="password" type="password" name="password" placeholder="Password" required autocomplete="current-password">
+                        <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password" aria-pressed="false" title="Show password">
+                            <span class="eye-on"><i data-lucide="eye"></i></span>
+                            <span class="eye-off"><i data-lucide="eye-off"></i></span>
+                        </button>
+                    </div>
+                </div>
 
-        <p style="margin-top:8px; font-size:13px;">
-            <a href="/">
-                Back to Home
-            </a>
-        </p>
+                <div class="login-actions">
+                    <button type="submit" class="btn btn-primary"><i data-lucide="log-in"></i>Login</button>
+                </div>
+            </form>
 
+            <div class="login-links">
+                <a href="{{ url_for('forgot_password') }}"><i data-lucide="key-round"></i>Forgot Password?</a>
+                <a href="/register"><i data-lucide="user-plus"></i>Don't have an account? Register</a>
+                <a href="/"><i data-lucide="arrow-left"></i>Back to Home</a>
+            </div>
+        </div>
     </div>
 
     <script>
-        function togglePassword() {
+        (function () {
+            var input = document.getElementById('password');
+            var btn = document.getElementById('pwToggle');
 
-            const password =
-                document.getElementById("password");
+            btn.addEventListener('click', function () {
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                btn.classList.toggle('showing', show);
+                btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+                var label = show ? 'Hide password' : 'Show password';
+                btn.setAttribute('aria-label', label);
+                btn.setAttribute('title', label);
+                input.focus();
+            });
+        })();
 
-            if (password.type === "password") {
-                password.type = "text";
-            } else {
-                password.type = "password";
-            }
-        }
+        if (window.lucide) { lucide.createIcons(); }
     </script>
-
 </body>
 </html>

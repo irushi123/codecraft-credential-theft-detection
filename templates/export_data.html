@@ -1,61 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Export Data</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        
+        .dash .exp-card { margin: 0; padding: 24px; max-width: 560px; }
+        .dash .exp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+        .dash .exp-head .ico {
+            width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+            background: var(--hover); color: var(--accent); flex: none;
+        }
+        .dash .exp-head .ico svg { width: 18px; height: 18px; }
+        .dash .exp-head h3 { margin: 0; font-size: 16px; }
+        .dash .exp-rule {
+            display: flex; align-items: center; gap: 8px;
+            margin: 12px 0 20px; padding: 10px 12px; border-radius: 8px;
+            background: var(--hover); border: 1px solid var(--border);
+            font-size: 13px; color: var(--muted); line-height: 1.5;
+        }
+        .dash .exp-rule svg { width: 15px; height: 15px; flex: none; }
+
+        .dash .exp-form { display: flex; flex-direction: column; gap: 16px; margin: 0; }
+        .dash .field { display: flex; flex-direction: column; gap: 6px; }
+        .dash .field label { font-size: 13px; font-weight: 600; color: var(--text); }
+        .dash .field input,
+        .dash .field select {
+            width: 100%; height: 42px; padding: 0 12px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--surface); color: var(--text);
+            font: inherit; font-size: 14px;
+        }
+        .dash .field input:focus,
+        .dash .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+        .dash .exp-actions { display: flex; justify-content: flex-end; margin-top: 4px; }
+        .dash .exp-actions .btn { margin: 0; height: 42px; padding: 0 22px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .dash .exp-actions .btn svg { width: 16px; height: 16px; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand"><span class="logo-mark">⬡</span>CodeCraft</div>
-            <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log">Audit Log</a>
-                <a href="/admin/export-form" class="active">Export Data</a>
-                <a href="/admin/reports">Generate Reports</a>
-                <a href="/admin/settings">System Settings</a>
-                <a href="/admin/import">Import Data</a>               
-                <a href="/admin/reports">Generate Reports</a>
-                {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-               {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-                
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>Export Data</h2>
-            <p class="subtitle">Download login attempt records as a CSV file</p>
-
-            <div class="content-card" style="max-width:480px;">
-                <form method="GET" action="/admin/export">
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Start Date (optional)</label>
-                    <input type="date" name="start_date" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">End Date (optional)</label>
-                    <input type="date" name="end_date" style="width:100%; padding:10px; margin-bottom:16px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-
-                    <label style="display:block; color:#9aa4b8; font-size:13px; margin-bottom:6px;">Risk Level (optional)</label>
-                    <select name="risk_level" style="width:100%; padding:10px; margin-bottom:20px; border-radius:6px; border:1px solid #4a4f5e; background:#2b2f3a; color:#dbe4f0;">
-                        <option value="">All</option>
-                        <option value="Low">Low</option>
-                        <option value="Medium">Medium</option>
-                        <option value="High">High</option>
-                    </select>
-
-                    <button type="submit" class="btn btn-primary" style="width:100%;">Download CSV</button>
-                </form>
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
             </div>
+
+            <nav>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form" class="active"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/rejection-log"><i data-lucide="user-x"></i><span>Rejection Log</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Export Data</h2>
+                <p class="subtitle">Download login attempt records as a CSV file</p>
+
+                <div class="content-card exp-card">
+                    <div class="exp-head">
+                        <div class="ico"><i data-lucide="file-down"></i></div>
+                        <h3>Export filters</h3>
+                    </div>
+                    <div class="exp-rule">
+                        <i data-lucide="info"></i>
+                        <span>All filters are optional. Leave them empty to export every record.</span>
+                    </div>
+
+                    <form method="GET" action="/admin/export" class="exp-form">
+                        <div class="field">
+                            <label for="start_date">Start Date (optional)</label>
+                            <input id="start_date" type="date" name="start_date">
+                        </div>
+
+                        <div class="field">
+                            <label for="end_date">End Date (optional)</label>
+                            <input id="end_date" type="date" name="end_date">
+                        </div>
+
+                        <div class="field">
+                            <label for="risk_level">Risk Level (optional)</label>
+                            <select id="risk_level" name="risk_level">
+                                <option value="">All</option>
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+
+                        <div class="exp-actions">
+                            <button type="submit" class="btn btn-primary"><i data-lucide="download"></i>Download CSV</button>
+                        </div>
+                    </form>
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>

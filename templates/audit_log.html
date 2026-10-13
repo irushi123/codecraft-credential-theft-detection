@@ -1,57 +1,245 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Audit Log</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        
+        .dash .card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+        .dash .tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+            background: var(--hover); color: var(--muted); border: 1px solid var(--border);
+        }
+        .dash .tag svg { width: 12px; height: 12px; }
+
+        .dash .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .dash .toolbar .search { flex: 1 1 260px; max-width: 360px; }
+        .dash .toolbar select {
+            height: 38px; padding: 0 12px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text);
+            font: inherit; font-size: 14px; cursor: pointer;
+        }
+        .dash .toolbar select:focus { outline: none; border-color: var(--text); }
+        .dash .toolbar .count { margin-left: auto; font-size: 13px; color: var(--muted); }
+
+        .dash td.mono { font-family: ui-monospace, Consolas, monospace; color: var(--muted); }
+        .dash td.time { color: var(--muted); white-space: nowrap; }
+
+        .dash .pill {
+            display: inline-block; padding: 2px 10px; border-radius: 999px;
+            font-size: 12px; font-weight: 600; background: var(--hover); color: var(--text);
+            border: 1px solid var(--border); white-space: nowrap;
+        }
+        .dash .pill.good { background: var(--success-bg); color: var(--success); border-color: transparent; }
+        .dash .pill.bad  { background: var(--danger-bg);  color: var(--danger);  border-color: transparent; }
+
+        .dash .pager { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+        .dash .pager .btn { height: 36px; padding: 0 14px; cursor: pointer; }
+        .dash .pager .btn[disabled] { opacity: .45; cursor: not-allowed; }
+        .dash .pager .info { font-size: 13px; color: var(--muted); }
+        .dash .no-match { display: none; text-align: center; color: var(--muted); padding: 24px 0 8px; font-size: 14px; }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
-            <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/monitoring">System Monitoring</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/audit-log" class="active">Audit Log</a>
-                <a href="/admin/reports">Generate Reports</a>
-                {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-                {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>Audit Log</h2>
-            <p class="subtitle">System activity log — all administrative actions (read-only)</p>
-
-            <div class="content-card">
-                <table>
-                    <tr>
-                        <th>Action ID</th><th>Admin</th><th>Target User</th><th>Action Type</th><th>Time</th>
-                    </tr>
-                    {% for row in actions %}
-                    <tr>
-                        <td>{{ row.Action_ID }}</td>
-                        <td>{{ row.Admin_Email }}</td>
-                        <td>{{ row.Target_Email }}</td>
-                        <td>{{ row.Action_type }}</td>
-                        <td>{{ row.Action_time }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-                {% if not actions %}
-                    <p style="color:#9aa4b8;">No admin actions recorded yet.</p>
-                {% endif %}
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
             </div>
+
+            <nav>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log" class="active"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Audit Log</h2>
+                <p class="subtitle">System activity log &mdash; all administrative actions (read-only)</p>
+
+                <div class="content-card">
+                    {% if actions %}
+                    <div class="card-top">
+                        <span class="tag"><i data-lucide="lock"></i>Read-only</span>
+                    </div>
+
+                    <div class="toolbar">
+                        <label class="search">
+                            <i data-lucide="search"></i>
+                            <input id="rowSearch" type="text" placeholder="Search admin, user or action..." autocomplete="off">
+                        </label>
+                        <select id="typeFilter" aria-label="Filter by action type">
+                            <option value="">All actions</option>
+                        </select>
+                        <span class="count" id="rowCount"></span>
+                    </div>
+
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Action ID</th>
+                                    <th>Admin</th>
+                                    <th>Target User</th>
+                                    <th>Action Type</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logBody">
+                                {% for row in actions %}
+                                <tr>
+                                    <td class="mono">{{ row.Action_ID }}</td>
+                                    <td>{{ row.Admin_Email }}</td>
+                                    <td>{{ row.Target_Email }}</td>
+                                    <td><span class="pill" data-type>{{ row.Action_type }}</span></td>
+                                    <td class="time">{{ row.Action_time }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="no-match" id="noMatch">No actions match your search.</div>
+
+                    <div class="pager">
+                        <span class="info" id="pageInfo"></span>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn btn-outline" id="prevBtn">Previous</button>
+                            <button type="button" class="btn btn-outline" id="nextBtn">Next</button>
+                        </div>
+                    </div>
+                    {% else %}
+                        <p class="desc" style="margin:0;">No admin actions recorded yet.</p>
+                    {% endif %}
+                </div>
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+        (function () {
+            var body = document.getElementById('logBody');
+            if (!body) return;
+            var rows = Array.prototype.slice.call(body.querySelectorAll('tr'));
+            var search = document.getElementById('rowSearch');
+            var typeSel = document.getElementById('typeFilter');
+            var count = document.getElementById('rowCount');
+            var noMatch = document.getElementById('noMatch');
+            var info = document.getElementById('pageInfo');
+            var prev = document.getElementById('prevBtn'), next = document.getElementById('nextBtn');
+            var PAGE = 20, page = 1, filtered = rows;
+
+            /* Action type pills: colour + dropdown options */
+            var types = {};
+            rows.forEach(function (r) {
+                var pill = r.querySelector('[data-type]');
+                var t = pill.textContent.trim();
+                var l = t.toLowerCase();
+                r._type = t;
+                r._text = r.textContent.toLowerCase();
+                types[t] = true;
+                if (/unlock|approve|activate|restore|backup|enable|resolve/.test(l)) pill.classList.add('good');
+                else if (/lock|delete|reject|suspend|remove|deactivate|disable|ban/.test(l)) pill.classList.add('bad');
+            });
+            Object.keys(types).sort().forEach(function (t) {
+                var o = document.createElement('option'); o.value = t; o.textContent = t; typeSel.appendChild(o);
+            });
+
+            function render() {
+                var q = search.value.trim().toLowerCase(), t = typeSel.value;
+                filtered = rows.filter(function (r) {
+                    return (!t || r._type === t) && (!q || r._text.indexOf(q) !== -1);
+                });
+                var pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+                if (page > pages) page = pages;
+                var start = (page - 1) * PAGE, end = start + PAGE;
+
+                rows.forEach(function (r) { r.style.display = 'none'; });
+                filtered.slice(start, end).forEach(function (r) { r.style.display = ''; });
+
+                count.textContent = filtered.length + ' of ' + rows.length + ' actions';
+                noMatch.style.display = filtered.length ? 'none' : 'block';
+                info.textContent = filtered.length ? ('Page ' + page + ' of ' + pages) : '';
+                prev.disabled = page <= 1;
+                next.disabled = page >= pages;
+            }
+
+            search.addEventListener('input', function () { page = 1; render(); });
+            typeSel.addEventListener('change', function () { page = 1; render(); });
+            prev.addEventListener('click', function () { if (page > 1) { page--; render(); } });
+            next.addEventListener('click', function () { page++; render(); });
+            render();
+        })();
+    </script>
 </body>
 </html>

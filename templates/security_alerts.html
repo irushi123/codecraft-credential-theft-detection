@@ -1,55 +1,225 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeCraft - Security Alerts</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        
+        .dash .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .dash .toolbar .search { flex: 1 1 260px; max-width: 360px; background: var(--surface); }
+        .dash .toolbar .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+        .dash .toolbar .btn { height: 38px; padding: 0 14px; cursor: pointer; }
+        .dash .toolbar .count { margin-left: auto; font-size: 13px; color: var(--muted); }
+
+        .dash .alert-list { display: flex; flex-direction: column; gap: 12px; }
+        .dash .alert-item {
+            margin: 0; padding: 16px 20px;
+            display: flex; align-items: center; gap: 16px;
+            border-left: 4px solid var(--border);
+        }
+        .dash .alert-item.high   { border-left-color: var(--danger); }
+        .dash .alert-item.medium { border-left-color: var(--warn); }
+        .dash .alert-item.low    { border-left-color: var(--success); }
+
+        .dash .alert-icon {
+            flex: none; width: 38px; height: 38px; border-radius: 10px;
+            display: grid; place-items: center;
+        }
+        .dash .alert-icon svg { width: 18px; height: 18px; }
+        .dash .alert-item.high   .alert-icon { background: var(--danger-bg);  color: var(--danger); }
+        .dash .alert-item.medium .alert-icon { background: var(--warn-bg);    color: var(--warn); }
+        .dash .alert-item.low    .alert-icon { background: var(--success-bg); color: var(--success); }
+
+        .dash .alert-body { flex: 1; min-width: 0; }
+        .dash .alert-msg { font-size: 14px; line-height: 1.55; color: var(--text); word-break: break-word; }
+        .dash .alert-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); }
+
+        .dash .pill {
+            display: inline-block; padding: 1px 9px; border-radius: 999px;
+            font-size: 11px; font-weight: 600;
+        }
+        .dash .pill.high   { background: var(--danger-bg);  color: var(--danger); }
+        .dash .pill.medium { background: var(--warn-bg);    color: var(--warn); }
+        .dash .pill.low    { background: var(--success-bg); color: var(--success); }
+
+        .dash .alert-item .btn { margin: 0; flex: none; }
+        .dash .no-match { display: none; text-align: center; color: var(--muted); padding: 32px 0; font-size: 14px; }
+
+        @media (max-width: 560px) {
+            .dash .alert-item { flex-wrap: wrap; }
+            .dash .alert-item .btn { width: 100%; text-align: center; }
+        }
+    </style>
 </head>
-<body>
+<body class="dash">
+    {% set admin_email = session.get('email') or 'Admin' %}
+
     <div class="app-wrapper">
-        <div class="sidebar">
-            <div class="brand">Code<span>Craft</span> Admin</div>
-            <nav>
-                <a href="/admin">Dashboard</a>
-                <a href="/admin/login-attempts">Login Attempts</a>
-                <a href="/admin/risk-scores">Risk Scores</a>
-                <a href="/admin/alerts" class="active">Security Alerts</a>
-                <a href="/admin/explanations">Explanation Summary</a>
-                <a href="/admin/users">Manage Users</a>
-                <a href="/admin/export-form">Export Data</a>
-                <a href="/admin/reports">Generate Reports</a>
-                <a href="/admin/settings">System Settings</a>
-                <a href="/admin/import">Import Data</a>
-                <a href="/admin/reports">Generate Reports</a>
-                {% if session.is_super_admin %}
-                <a href="/admin/pending-admins">Pending Admins</a>
-                <a href="/admin/backup">Data Backup</a>
-                <a href="/admin/restore">Data Restore</a>
-                {% endif %}
-                <a href="/help">Help &amp; Support</a>
-                <a href="/logout">Logout</a>
-                
-                
-            </nav>
-        </div>
-
-        <div class="main-content">
-            <h2>Security Alerts</h2>
-            <p class="subtitle">Real-time feed of flagged login attempts</p>
-
-            <div class="content-card">
-                {% for row in alerts %}
-                    <div class="alert-card {% if row.Risk_level == 'Medium' %}medium{% elif row.Risk_level == 'Low' %}low{% endif %}">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span>{{ row.Alert_message }}</span>
-                            <a href="/admin/review/{{ row.Alert_ID }}" class="btn btn-primary" style="margin:0;">Review</a>
-                        </div>
-                    </div>
-                {% endfor %}
-                {% if not alerts %}
-                    <p style="color:#9aa4b8;">No security alerts yet.</p>
-                {% endif %}
+        <!-- ========== Sidebar ========== -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-logo"><i data-lucide="shield-check"></i></div>
+                <div class="brand-text">Code<span>Craft</span> Admin</div>
             </div>
+
+            <nav>
+                <div class="nav-group">Overview</div>
+                <a href="/admin"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="/admin/monitoring"><i data-lucide="activity"></i><span>System Monitoring</span></a>
+
+                <div class="nav-group">Security</div>
+                <a href="/admin/login-attempts"><i data-lucide="log-in"></i><span>Login Attempts</span></a>
+                <a href="/admin/risk-scores"><i data-lucide="gauge"></i><span>Risk Scores</span></a>
+                <a href="/admin/alerts" class="active"><i data-lucide="triangle-alert"></i><span>Security Alerts</span></a>
+                <a href="/admin/explanations"><i data-lucide="file-search"></i><span>Explanation Summary</span></a>
+                <a href="/admin/audit-log"><i data-lucide="scroll-text"></i><span>Audit Log</span></a>
+
+                <div class="nav-group">Management</div>
+                <a href="/admin/users"><i data-lucide="users"></i><span>Manage Users</span></a>
+                <a href="/admin/reports"><i data-lucide="bar-chart-3"></i><span>Generate Reports</span></a>
+                <a href="/admin/export-form"><i data-lucide="download"></i><span>Export Data</span></a>
+                <a href="/admin/import"><i data-lucide="upload"></i><span>Import Data</span></a>
+
+                <div class="nav-group">System</div>
+                <a href="/admin/settings"><i data-lucide="settings"></i><span>System Settings</span></a>
+                <a href="/change-password"><i data-lucide="key-round"></i><span>Change Password</span></a>
+                {% if session.is_super_admin %}
+                <a href="/admin/pending-admins"><i data-lucide="user-check"></i><span>Pending Admins</span></a>
+                <a href="/admin/backup"><i data-lucide="database-backup"></i><span>Data Backup</span></a>
+                <a href="/admin/restore"><i data-lucide="history"></i><span>Data Restore</span></a>
+                {% endif %}
+                <a href="/help"><i data-lucide="life-buoy"></i><span>Help &amp; Support</span></a>
+                <a href="/logout" class="logout"><i data-lucide="log-out"></i><span>Logout</span></a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="avatar" data-initials="{{ admin_email }}">A</div>
+                <div class="who">
+                    <strong>{% if session.is_super_admin %}Super Admin{% else %}Admin{% endif %}</strong>
+                    <small>{{ admin_email }}</small>
+                </div>
+            </div>
+        </aside>
+        <div class="overlay"></div>
+
+        <!-- ========== Main ========== -->
+        <div class="main-area">
+            <header class="topbar">
+                <button class="icon-btn" id="sidebarToggle" aria-label="Toggle sidebar"><i data-lucide="panel-left"></i></button>
+
+                <label class="search">
+                    <i data-lucide="search"></i>
+                    <input id="menuSearch" type="text" placeholder="Search menu..." autocomplete="off">
+                    <kbd>/</kbd>
+                </label>
+
+                <div class="spacer"></div>
+
+                <a href="/admin/alerts" class="icon-btn" aria-label="Alerts"><i data-lucide="bell"></i></a>
+                <button class="icon-btn" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+
+                <div class="profile-menu">
+                    <button class="avatar" id="profileBtn" data-initials="{{ admin_email }}" aria-label="Profile">A</button>
+                    <div class="dropdown" id="profileDropdown">
+                        <a href="/change-password"><i data-lucide="key-round"></i>Change Password</a>
+                        <a href="/help"><i data-lucide="life-buoy"></i>Help &amp; Support</a>
+                        <a href="/logout"><i data-lucide="log-out"></i>Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <h2>Security Alerts</h2>
+                <p class="subtitle">Flagged login attempts that need your review</p>
+
+                {% if alerts %}
+                <div class="toolbar">
+                    <label class="search">
+                        <i data-lucide="search"></i>
+                        <input id="rowSearch" type="text" placeholder="Search alerts..." autocomplete="off">
+                    </label>
+                    <div class="chips">
+                        <button type="button" class="btn btn-primary" data-filter="all">All</button>
+                        <button type="button" class="btn btn-outline" data-filter="high">High</button>
+                        <button type="button" class="btn btn-outline" data-filter="medium">Medium</button>
+                        <button type="button" class="btn btn-outline" data-filter="low">Low</button>
+                    </div>
+                    <span class="count" id="rowCount"></span>
+                </div>
+
+                <div class="alert-list" id="alertList">
+                    {% for row in alerts %}
+                    {% set lvl = 'high' if row.Risk_level == 'High' else ('medium' if row.Risk_level == 'Medium' else 'low') %}
+                    <div class="content-card alert-item {{ lvl }}" data-level="{{ lvl }}">
+                        <div class="alert-icon">
+                            <i data-lucide="{{ 'shield-alert' if lvl == 'high' else ('triangle-alert' if lvl == 'medium' else 'info') }}"></i>
+                        </div>
+                        <div class="alert-body">
+                            <div class="alert-msg">{{ row.Alert_message }}</div>
+                            <div class="alert-meta">
+                                <span class="pill {{ lvl }}">{{ row.Risk_level or 'Low' }} risk</span>
+                            </div>
+                        </div>
+                        <a href="/admin/review/{{ row.Alert_ID }}" class="btn btn-primary">Review</a>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="no-match" id="noMatch">No alerts match your search.</div>
+
+                {% else %}
+                <div class="content-card">
+                    <p class="desc" style="margin:0;">No security alerts yet. Flagged login attempts will appear here.</p>
+                </div>
+                {% endif %}
+            </main>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script>
+        (function () {
+            var items = Array.prototype.slice.call(document.querySelectorAll('.alert-item'));
+            if (!items.length) return;
+            var search = document.getElementById('rowSearch');
+            var btns = document.querySelectorAll('[data-filter]');
+            var count = document.getElementById('rowCount');
+            var noMatch = document.getElementById('noMatch');
+            var level = 'all';
+
+            items.forEach(function (c) { c._text = c.textContent.toLowerCase(); });
+
+            function apply() {
+                var q = search.value.trim().toLowerCase(), shown = 0;
+                items.forEach(function (c) {
+                    var ok = (level === 'all' || c.getAttribute('data-level') === level) &&
+                             (!q || c._text.indexOf(q) !== -1);
+                    c.style.display = ok ? '' : 'none';
+                    if (ok) shown++;
+                });
+                count.textContent = shown + ' of ' + items.length + ' alerts';
+                noMatch.style.display = shown ? 'none' : 'block';
+            }
+
+            btns.forEach(function (b) {
+                b.addEventListener('click', function () {
+                    level = b.getAttribute('data-filter');
+                    btns.forEach(function (x) {
+                        var on = x === b;
+                        x.classList.toggle('btn-primary', on);
+                        x.classList.toggle('btn-outline', !on);
+                    });
+                    apply();
+                });
+            });
+            search.addEventListener('input', apply);
+
+            apply();
+        })();
+    </script>
 </body>
 </html>
